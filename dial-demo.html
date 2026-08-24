@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dial behaviour — isolated demo</title>
+<style>
+  :root{
+    --q-past:#D6D6D6;              /* inactive number — the brighter grey */
+    --q-text:#111111;             /* the selected value — the strong colour */
+    --face:"Georgia",serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:#EDEDE9;display:flex;
+       align-items:center;justify-content:center;gap:56px;flex-wrap:wrap;
+       font-family:var(--face);padding:40px}
+
+  /* the panel, roughly the proportions of the real question card */
+  .panel{width:320px;height:360px;background:#fff;border-radius:2px;
+         box-shadow:0 24px 60px rgba(0,0,0,.10);padding:26px 26px 0;
+         overflow:hidden;position:relative}
+  .panel h2{margin:0;color:var(--q-text);font-size:21px;line-height:1.18;
+            font-weight:600;letter-spacing:-.01em}
+  .panel .hint{margin:10px 0 0;color:#9a9a9a;font-size:12.5px;line-height:1.4;
+               font-family:system-ui,sans-serif}
+
+  svg.dial{position:absolute;left:0;right:0;margin:0 auto;display:block;
+           width:100%;overflow:visible;cursor:grab;touch-action:none}
+  svg.dial:active{cursor:grabbing}
+  .dial-arc{fill:none;stroke:var(--q-past)}
+  .dial-tick{fill:var(--q-past)}
+  .dial-dot{fill:var(--q-text)}
+  .dial-lab{fill:var(--q-past);font-family:var(--face);font-weight:400}
+  .dial-val{fill:var(--q-text);font-family:var(--face);font-weight:700;text-anchor:middle}
+  .dial-hit{fill:transparent;cursor:pointer}
+
+  .side{max-width:300px;font-family:system-ui,sans-serif;color:#333}
+  .side h1{font-size:15px;margin:0 0 10px;letter-spacing:.02em;text-transform:uppercase;color:#111}
+  .side p{font-size:13px;line-height:1.55;margin:0 0 12px;color:#555}
+  .side ul{font-size:13px;line-height:1.6;margin:0 0 14px;padding-left:18px;color:#555}
+  .side .hintrow{font-size:12px;color:#999;margin-top:18px}
+  kbd{font-family:ui-monospace,monospace;background:#fff;border:1px solid #ccc;
+      border-bottom-width:2px;border-radius:4px;padding:1px 6px;font-size:11px}
+</style>
+</head>
+<body>
+
+  <div class="panel">
+    <h2>How many active alarms<br>do you currently have on?</h2>
+    <p class="hint">Drag sideways to turn the dial, or click a number.</p>
+    <div id="mount"></div>
+  </div>
+
+  <div class="side">
+    <h1>The behaviour you asked for</h1>
+    <p>The ring still rotates to bring the value up to twelve o'clock. What's new
+       is the <b>circle under each number</b>:</p>
+    <ul>
+      <li>arriving at the top → <b>grows</b> and darkens to the strong colour</li>
+      <li>leaving the top → <b>shrinks</b> and brightens back to grey</li>
+      <li><b>springy settle</b> (easeOutBack) — it overshoots the top a touch, then snaps home</li>
+    </ul>
+    <p>Design and colours are untouched — only the motion is added.</p>
+    <div class="hintrow">Drag the dial sideways with the mouse, or click a number — no arrow keys.</div>
+  </div>
+
+<script>
+/* ============================================================
+   Isolated copy of the dial from architecture-of-time.html.
+   Same dialMarkup + spinDial logic, minimal shell around it.
+   ============================================================ */
+const MIN=1, MAX=12;
+let cur=6;
+
+/* --- geometry (px), matched to the real control's ratios --- */
+const R=140;                       // arc radius
+const LR=1.112;                    // label ring, multiple of R
+const STEP=27;                     // degrees per value
+const SIDES=5;                     // numbers each side
+const DOT_R=R*0.0455;              // active circle
+const TICK_R=R*0.0253;             // idle circle
+const FONT=R*0.1146;               // ~16px labels
+const VBW=440, VBH=440;            // viewbox
+const CX=VBW/2, CY=190;            // centre: dial hangs just under the hint
+
+const pad2=n=>String(n).padStart(2,'0');
+const wrap=k=>MIN+(((cur-MIN+k)%(MAX-MIN+1))+(MAX-MIN+1))%(MAX-MIN+1);
+const pt=(rad,deg)=>{const a=(deg-90)*Math.PI/180;
+  return [CX+rad*Math.cos(a), CY+rad*Math.sin(a)];};
+
+function dialMarkup(){
+  const lr=R*LR;
+  let s='<svg class="dial" viewBox="0 0 '+VBW+' '+VBH+'" tabindex="0" role="slider"'
+      + ' aria-valuemin="'+MIN+'" aria-valuemax="'+MAX+'" aria-valuenow="'+cur+'">';
+  s+='<circle class="dial-arc" cx="'+CX+'" cy="'+CY+'" r="'+R+'" stroke-width="2.6"/>';
+  s+='<circle class="dial-arc" cx="'+CX+'" cy="'+CY+'" r="'+(R*0.62).toFixed(1)+'" stroke-width="2.6"/>'; // inner ring
+  s+='<g class="dial-ring" data-cx="'+CX+'" data-cy="'+CY+'"'
+    + ' data-step="'+STEP+'" data-rmin="'+TICK_R.toFixed(2)+'" data-rmax="'+DOT_R.toFixed(2)+'">';
+  for(let k=-SIDES;k<=SIDES;k++){
+    const deg=k*STEP, [lx,ly]=pt(lr,deg), lab=pad2(wrap(k)), [tx,ty]=pt(R,deg);
+    const on=(k===0);
+    s+='<circle class="'+(on?'dial-dot':'dial-tick')+'" data-deg="'+deg.toFixed(2)+'"'
+      + ' cx="'+tx.toFixed(1)+'" cy="'+ty.toFixed(1)+'"'
+      + ' r="'+((on?DOT_R:TICK_R)).toFixed(1)+'"/>';
+    if(on){
+      s+='<text class="dial-val" x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'"'
+        + ' dominant-baseline="central" font-size="'+FONT.toFixed(1)+'">'+lab+'</text>';
+      continue;
+    }
+    s+='<text class="dial-lab" x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'"'
+      + ' text-anchor="middle" dominant-baseline="central" font-size="'+FONT.toFixed(1)+'"'
+      + ' transform="rotate('+deg.toFixed(1)+' '+lx.toFixed(1)+' '+ly.toFixed(1)+')">'+lab+'</text>';
+    s+='<circle class="dial-hit" data-step="'+k+'" cx="'+lx.toFixed(1)+'" cy="'+ly.toFixed(1)+'" r="46"/>';
+  }
+  s+='</g></svg>';
+  return s;
+}
+
+/* ---- the behaviour: proximity-driven scale + colour, springy settle ---- */
+let dialSpinRAF=0;
+function dialRGB(v){ v=(v||'').trim(); let m;
+  if(m=v.match(/^#([0-9a-f]{3})$/i)) return [0,1,2].map(i=>parseInt(m[1][i]+m[1][i],16));
+  if(m=v.match(/^#([0-9a-f]{6})$/i)) return [0,2,4].map(i=>parseInt(m[1].substr(i,2),16));
+  if(m=v.match(/rgba?\(([^)]+)\)/i)) return m[1].split(',').slice(0,3).map(x=>parseFloat(x));
+  return null;
+}
+const dialMix=(a,b,t)=>'rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*t)).join(',')+')';
+const reduceMotion=()=>window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function spinDial(k){
+  cancelAnimationFrame(dialSpinRAF);
+  const ring=document.querySelector('.dial-ring'); if(!ring) return;
+  const cx=+ring.dataset.cx, cy=+ring.dataset.cy;
+  const step=+ring.dataset.step, rmin=+ring.dataset.rmin, rmax=+ring.dataset.rmax;
+  const dots=ring.querySelectorAll('.dial-dot,.dial-tick');
+  const cs=getComputedStyle(ring);
+  const cIdle=dialRGB(cs.getPropertyValue('--q-past')),
+        cOn=dialRGB(cs.getPropertyValue('--q-text'));
+  const paint=deg=>{
+    dots.forEach(el=>{
+      const d=((+el.dataset.deg+deg)%360+540)%360-180;
+      const a=Math.max(0,1-Math.abs(d)/step);
+      el.setAttribute('r',(rmin+(rmax-rmin)*a).toFixed(2));
+      if(cIdle&&cOn) el.setAttribute('fill',dialMix(cIdle,cOn,a));
+    });
+  };
+  if(!k){ paint(0); return; }
+  if(reduceMotion()){ ring.setAttribute('transform','rotate(0 '+cx+' '+cy+')'); paint(0); return; }
+  const from=k*step;
+  const c1=2.2, back=t=>1+(c1+1)*Math.pow(t-1,3)+c1*Math.pow(t-1,2);   // easeOutBack
+  const dur=440, t0=performance.now();
+  ring.setAttribute('transform','rotate('+from.toFixed(2)+' '+cx+' '+cy+')');
+  paint(from);
+  dialSpinRAF=requestAnimationFrame(function frame(now){
+    let t=(now-t0)/dur; if(t>1) t=1;
+    const deg=from*(1-back(t));
+    ring.setAttribute('transform','rotate('+deg.toFixed(2)+' '+cx+' '+cy+')');
+    paint(deg);
+    if(t<1) dialSpinRAF=requestAnimationFrame(frame);
+    else { ring.setAttribute('transform','rotate(0 '+cx+' '+cy+')'); paint(0); }
+  });
+}
+
+/* ---- wiring: click a number, drag sideways, arrow keys ---- */
+const mount=document.getElementById('mount');
+function render(){ mount.innerHTML=dialMarkup(); }
+function turn(k,noSpin){ if(!k) return; cur=wrap(k); render(); if(!noSpin) spinDial(k); }
+
+render();
+
+let drag=null;
+mount.addEventListener('pointerdown',e=>{
+  const svg=e.target.closest('svg.dial'); if(!svg) return;
+  svg.setPointerCapture(e.pointerId);
+  /* remember the tapped number so a press-without-drag jumps straight to it */
+  drag={x:e.clientX, taken:0, hit:e.target.closest('.dial-hit')};
+});
+mount.addEventListener('pointermove',e=>{
+  if(!drag) return;
+  const per=64;                                   // px of travel per value
+  const want=Math.round((e.clientX-drag.x)/per);
+  if(want!==drag.taken){ turn(want-drag.taken); drag.taken=want; }  // animate each step
+});
+mount.addEventListener('pointerup',()=>{
+  /* tap on an unselected number → animate straight to it (not only dragging) */
+  if(drag && drag.taken===0 && drag.hit) turn(+drag.hit.dataset.step);
+  drag=null;
+});
+mount.addEventListener('pointercancel',()=>{ drag=null; });
+</script>
+</body>
+</html>

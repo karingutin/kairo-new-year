@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="KAIRO">
+<title>KAIRO</title>
+<!--
+  THE MARK, AT 16 PIXELS.
+
+  A K cut out of a 3 x 3 patch of the interface lattice: the stem is the whole
+  left column, and the two arms are single cells meeting the middle one at a
+  CORNER, which is the same join the five KAIRO tiles make on the opening
+  screen. So this is not a letter set in a typeface and placed on the grid — it
+  is a letter the grid has been filled in at, which is what the whole mark has
+  always been. It is also why there is no font here to fail to load and no
+  outline to convert: six rectangles, on whole cells.
+
+  THE CELL IS 9.14 AND NOT 10.67, i.e. there is half a cell of air on every
+  side rather than none. A favicon is 16px, so a 3-cell mark gets about 5px a
+  cell full-bleed and 4.6 with this margin — and the margin is worth those four
+  tenths, because the frame would otherwise crop the stem and the two arms flush
+  and the K would read as a fragment of something larger. At the generous margin
+  it was drawn with (about a cell and a half) the cell fell to 3.7px and the
+  corner joins came apart, which is the one thing this shape cannot afford.
+
+  IT INVERTS WITH THE LIGHT. A browser puts this on its own chrome, not on our
+  ground, and an ink square disappears into a dark tab strip. Under a dark
+  scheme the two colours simply trade, so the K becomes the cells LEFT in ink —
+  which is the opening screen's own logic, not a second design.
+-->
+<style>
+  .ground{fill:#ECECEC}
+  .mark{fill:#141414}
+  @media (prefers-color-scheme:dark){
+    .ground{fill:#141414}
+    .mark{fill:#ECECEC}
+  }
+</style>
+<rect class="ground" width="32" height="32"/>
+<g class="mark">
+  <!-- THE STEM AND THE JUNCTION, AS ONE PATH AND NOT FOUR RECTS. They are four
+       cells of the lattice and it is tempting to draw them as four, but four
+       abutting rects share three edges, and a shared edge between two shapes of
+       the same colour still antialiases — so at any size above the tab a pale
+       hairline shows along every one of them. The cells are flush in the drawing
+       and flush is what this has to be, so their union is traced once:
+       down the stem's right side, out along the junction, and back.
+         (2.29, 2.29) is the top left; the cell is 9.14; 29.71 is the bottom. -->
+  <path d="M2.29 2.29 H11.43 V11.43 H20.57 V20.57 H11.43 V29.71 H2.29 Z"/>
+  <!-- The two arms need no such care: they meet the junction at a CORNER and
+       nowhere else, so there is no shared edge to seam. That corner contact is
+       the point — it is the join the five KAIRO tiles make on the opening
+       screen, and the reason this reads as cut from the lattice. -->
+  <rect x="20.57" y="2.29" width="9.14" height="9.14"/>
+  <rect x="20.57" y="20.57" width="9.14" height="9.14"/>
+</g>
+</svg>

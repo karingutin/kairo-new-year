@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Working art files, kept locally, never published
+*.psd
+ניסיון עם אלמנטים שלי
+
+# Local Claude Code state (carries absolute paths from this machine)
+.claude/settings.local.json
+
+# Private working notes. This repo is public; these are not.
+handoff/
+
+# Brik exports kept for reference. They carry base44 asset URLs and a
+# frog.wix.com beacon, so they stay out of the public tree. The ported
+# engine itself lives in js/poster/28-lattice.js and is tracked, as are
+# lattice/engine.js, port.js, the presets and the two test harnesses.
+lattice/week.html
+lattice/weekend.html
+lattice/week new.html
+lattice/weekend new.html
+
+# The pre-split monolith, superseded by index.html + css/ + js/. Kept on
+# disk as the byte-for-byte reference the split was checked against.
+architecture-of-time-dots.html

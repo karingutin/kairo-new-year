@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture of Time — 9 Extra Questions</title>
+<style>
+  html,body{ margin:0; padding:0; background:#171310; min-height:100vh; }
+  .aot{
+    --paper:#EDE1C6; --ink:#241C14; --magenta:#D81E6E; --gold:#F0B429; --rust:#D9591F; --sage:#7C8B55; --line:#8A7F68;
+    font-family:'Georgia','Times New Roman',serif; color:var(--ink); position:relative; width:100%; box-sizing:border-box;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px;
+  }
+  .aot *{box-sizing:border-box;}
+  .aot-grid{display:grid; grid-template-columns: minmax(320px,480px) minmax(420px,620px); gap:40px; align-items:start; max-width:1180px; width:100%;}
+  @media (max-width:900px){ .aot-grid{grid-template-columns:1fr;} }
+
+  .aot-poster-wrap{ position:relative; }
+  .aot-poster{ width:100%; aspect-ratio:7/10; border-radius:2px; box-shadow:0 8px 60px rgba(0,0,0,.55); background:var(--paper); }
+  .aot #aotSvg g[id^="L-"]{ transition:opacity .25s; }
+  .aot #aotSvg g.aot-dim{ opacity:.12; }
+  .aot-dots{ display:flex; gap:7px; justify-content:center; margin-top:18px; flex-wrap:wrap; }
+  .aot-dot{ width:10px; height:10px; border-radius:50%; background:#5a5245; opacity:.4; transition:opacity .25s, background .25s; }
+  .aot-dot.done{ opacity:1; background:var(--rust); }
+  .aot-dot.current{ opacity:1; background:#fff; box-shadow:0 0 0 3px rgba(216,30,110,.35); }
+  .aot-dot.skip{ opacity:.6; background:transparent; border:1.5px solid var(--line); }
+
+  .aot-card{ background:#fbf7ec; border:1px solid rgba(0,0,0,.08); border-radius:12px; padding:36px 36px 28px; min-height:480px; display:flex; flex-direction:column; box-shadow:0 8px 40px rgba(0,0,0,.35); }
+  .aot-tag{ font-family:'Helvetica Neue',Arial,sans-serif; font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; padding:4px 10px; border-radius:20px; display:inline-block; width:fit-content; margin-bottom:20px; }
+  .aot-tag.heavy{ background:rgba(216,30,110,.14); color:var(--magenta); }
+  .aot-tag.medium{ background:rgba(217,89,31,.14); color:var(--rust); }
+  .aot-tag.light{ background:rgba(124,139,85,.16); color:var(--sage); }
+  .aot-stem{ font-size:28px; line-height:1.35; margin:0 0 30px; font-weight:400; }
+  .aot-control{ flex:1; display:flex; flex-direction:column; justify-content:center; min-height:170px; }
+  .aot-hint{ font-family:'Helvetica Neue',Arial,sans-serif; font-size:12.5px; color:#8a8070; margin-top:18px; line-height:1.5; }
+  .aot-foot{ display:flex; justify-content:space-between; align-items:center; margin-top:26px; font-family:'Helvetica Neue',Arial,sans-serif; }
+  .aot-btn{ font-family:inherit; font-size:14px; letter-spacing:.03em; padding:12px 24px; border-radius:8px; border:1px solid var(--ink); background:var(--ink); color:var(--paper); cursor:pointer; transition:transform .1s; }
+  .aot-btn:active{ transform:scale(.96); }
+  .aot-btn.ghost{ background:transparent; color:var(--ink); border:1px solid rgba(0,0,0,.25); }
+  .aot-btn:disabled{ opacity:.35; cursor:default; }
+
+  .aot-duo{ display:flex; gap:16px; }
+  .aot-duo button{ flex:1; font-family:'Helvetica Neue',Arial,sans-serif; font-size:16px; padding:26px 16px; border-radius:12px; border:1.5px solid rgba(0,0,0,.15); background:#fff; cursor:pointer; transition:.15s; text-align:center; }
+  .aot-duo button:hover{ border-color:var(--ink); }
+  .aot-duo button.sel{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+  .aot-cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .aot-cards button{ font-family:'Helvetica Neue',Arial,sans-serif; font-size:15px; padding:20px 12px; border-radius:10px; border:1.5px solid rgba(0,0,0,.15); background:#fff; cursor:pointer; }
+  .aot-cards button.sel{ background:var(--rust); color:#fff; border-color:var(--rust); }
+
+  .aot-scrub-val{ font-family:'Helvetica Neue',Arial,sans-serif; font-size:48px; font-weight:700; text-align:center; margin-bottom:6px; }
+  .aot-scrub-unit{ font-family:'Helvetica Neue',Arial,sans-serif; font-size:13px; text-align:center; color:#8a8070; text-transform:uppercase; letter-spacing:.1em; margin-bottom:24px; }
+  .aot-scrub-track{ position:relative; height:7px; border-radius:5px; background:rgba(0,0,0,.12); margin:0 4px; }
+  .aot-scrub-fill{ position:absolute; left:0; top:0; height:100%; border-radius:5px; background:var(--rust); }
+  .aot-scrub-handle{ position:absolute; top:50%; width:26px; height:26px; border-radius:50%; background:#fff; border:2px solid var(--rust); transform:translate(-50%,-50%); cursor:grab; box-shadow:0 1px 4px rgba(0,0,0,.3); }
+  .aot-scrub-labels{ display:flex; justify-content:space-between; font-family:'Helvetica Neue',Arial,sans-serif; font-size:12px; color:#8a8070; margin-top:10px; }
+
+  .aot-axis-labels{ display:flex; justify-content:space-between; font-family:'Helvetica Neue',Arial,sans-serif; font-size:14px; margin-bottom:16px; color:#3a3226; font-style:italic; }
+  .aot-axis-track{ position:relative; height:5px; background:rgba(0,0,0,.12); border-radius:3px; margin:0 6px; }
+  .aot-axis-handle{ position:absolute; top:50%; width:18px; height:18px; border-radius:50%; background:var(--sage); transform:translate(-50%,-50%); cursor:grab; box-shadow:0 1px 4px rgba(0,0,0,.3); }
+
+  .aot-dial-wrap{ display:flex; flex-direction:column; align-items:center; }
+  .aot-dial-labels{ display:flex; justify-content:space-between; width:240px; font-family:'Helvetica Neue',Arial,sans-serif; font-size:12px; color:#8a8070; margin-top:4px; text-transform:uppercase; letter-spacing:.08em; }
+
+  .aot-skiplabel{ font-family:'Helvetica Neue',Arial,sans-serif; font-size:12px; color:#8a8070; }
+
+  .aot-legend{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; overflow-y:auto; max-height:400px; }
+  .aot-legend li{ font-family:'Helvetica Neue',Arial,sans-serif; padding:12px 12px; border-radius:9px; cursor:default; display:flex; gap:12px; align-items:flex-start; transition:background .15s; }
+  .aot-legend li:hover{ background:rgba(216,30,110,.08); }
+  .aot-legend .sw{ width:12px; height:12px; border-radius:50%; margin-top:4px; flex:none; }
+  .aot-legend .qlabel{ font-size:13px; color:#8a8070; text-transform:uppercase; letter-spacing:.05em; }
+  .aot-legend .qanswer{ font-size:16px; margin-top:1px; }
+  .aot-legend .skiptxt{ font-style:italic; color:#a89b82; }
+
+  .aot-build{ position:fixed; bottom:10px; right:14px; font-family:'Helvetica Neue',Arial,sans-serif; font-size:10px; color:#5a5245; }
+
+  .aot-progress{ max-width:1180px; width:100%; margin:0 auto 22px; font-family:'Helvetica Neue',Arial,sans-serif; }
+  .aot-progress-label{ display:flex; justify-content:space-between; font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:#8a8070; margin-bottom:8px; }
+  .aot-progress-track{ height:4px; border-radius:3px; background:rgba(255,255,255,.12); overflow:hidden; }
+  .aot-progress-fill{ height:100%; width:0%; background:var(--rust); border-radius:3px; transition:width .3s ease; }
+</style>
+</head>
+<body>
+<div class="aot">
+  <div class="aot-progress">
+    <div class="aot-progress-label"><span id="aotProgLabel"></span><span id="aotProgWeight"></span></div>
+    <div class="aot-progress-track"><div class="aot-progress-fill" id="aotProgFill"></div></div>
+  </div>
+  <div class="aot-grid">
+    <div class="aot-poster-wrap">
+      <svg class="aot-poster" id="aotSvg" viewBox="0 0 700 1000" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="aot-dots" id="aotDots"></div>
+    </div>
+    <div class="aot-card">
+      <div id="aotTag" class="aot-tag"></div>
+      <h2 class="aot-stem" id="aotStem"></h2>
+      <div class="aot-control" id="aotControl"></div>
+      <div class="aot-hint" id="aotHint"></div>
+      <div class="aot-foot">
+        <button class="aot-btn ghost" id="aotBack">Back</button>
+        <span class="aot-skiplabel" id="aotSkip" style="cursor:pointer; text-decoration:underline;">Skip</span>
+        <button class="aot-btn" id="aotNext" disabled>Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="aot-build">nine-questions-prototype · b1</div>
+
+<script>
+(function(){
+  const NS='http://www.w3.org/2000/svg';
+  const svg=document.getElementById('aotSvg');
+  function el(tag,attrs,parent){ const e=document.createElementNS(NS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); (parent||svg).appendChild(e); return e; }
+
+  const defs=el('defs',{});
+  el('rect',{width:700,height:1000,fill:'#EDE1C6'});
+  const filt=el('filter',{id:'noise'},defs);
+  el('feTurbulence',{type:'fractalNoise',baseFrequency:'0.9',numOctaves:'2',result:'n'},filt);
+  el('feColorMatrix',{in:'n',type:'matrix',values:'0 0 0 0 0.14  0 0 0 0 0.11  0 0 0 0 0.08  0 0 0 0.05 0'},filt);
+  el('rect',{width:700,height:1000,filter:'url(#noise)'});
+  el('rect',{x:14,y:14,width:672,height:972,fill:'none',stroke:'#3a3226','stroke-width':1.4,opacity:.5});
+
+  [['dotFine',6,3,1.3],['dotMed',10,5,2.1],['dotCoarse',16,8,3.1],['dotSparse',22,11,2.0]].forEach(([id,w,c,r])=>{
+    const p=el('pattern',{id,width:w,height:w,patternUnits:'userSpaceOnUse'},defs);
+    el('circle',{cx:c,cy:c,r,fill:'#1c150e'},p);
+  });
+
+  const baseG=el('g',{id:'L-base',opacity:.22, stroke:'#5b4f3c','stroke-width':1});
+  const bcx=350,bcy=460;
+  for(let r=40;r<520;r+=40) el('circle',{cx:bcx,cy:bcy,r,fill:'none'},baseG);
+  for(let a=0;a<360;a+=30){ const rad=a*Math.PI/180; el('line',{x1:bcx,y1:bcy,x2:bcx+560*Math.cos(rad),y2:bcy+560*Math.sin(rad)},baseG); }
+
+  const layerOrder=['loss','fin','comp','rhy','rit','body','tabs','reply','say'];
+  layerOrder.forEach(id=>el('g',{id:'L-'+id}));
+  const hlLayer=el('g',{id:'L-highlight'});
+
+  function halftoneOverInto(parentG,shapeId,pattern,opacity){
+    const cp=el('clipPath',{id:'clip-'+shapeId+'-'+Math.random().toString(36).slice(2)},defs);
+    const shapeNode=document.getElementById(shapeId);
+    const clone=shapeNode.cloneNode(true); clone.removeAttribute('id');
+    cp.appendChild(clone);
+    el('rect',{x:0,y:0,width:700,height:1000,fill:'url(#'+pattern+')','clip-path':'url(#'+cp.id+')',opacity,style:'mix-blend-mode:multiply'},parentG);
+  }
+
+  const layers={};
+  layers.loss=(v)=>{
+    const g=document.getElementById('L-loss'); g.innerHTML='';
+    const cx=175,cy=210;
+    const n = 1 + Math.round(v*4);
+    for(let i=0;i<n;i++){
+      const rad = 60 + i*(18+v*22);
+      const op = (0.85 - i*0.16) * (1 - v*0.35);
+      const c = el('circle',{cx,cy,r:rad,fill:'#3a1024', opacity:Math.max(op,.05)},g);
+      c.id='loss-ring-'+i;
+      const pat = v<0.34?'dotCoarse': v<0.67?'dotMed':'dotFine';
+      halftoneOverInto(g,c.id,pat,.55);
+    }
+  };
+  layers.finitude=(v)=>{
+    const g=document.getElementById('L-fin'); g.innerHTML='';
+    const cx=530,cy=150;
+    el('circle',{cx,cy,r:20,fill:'#F0B429'},g);
+    const n = Math.round(6 + v*20);
+    const len = 26 + v*46;
+    for(let i=0;i<n;i++){
+      const a = (i/n)*Math.PI*2;
+      const col = v<0.5? '#8a7f68':'#D9591F';
+      el('line',{x1:cx+24*Math.cos(a),y1:cy+24*Math.sin(a),x2:cx+(24+len)*Math.cos(a),y2:cy+(24+len)*Math.sin(a),stroke:col,'stroke-width':1.6,opacity:.85},g);
+    }
+  };
+  layers.company=(v)=>{
+    const g=document.getElementById('L-comp'); g.innerHTML='';
+    const cx=540,cy=440;
+    const ellA=el('ellipse',{cx,cy,rx:70,ry:34,fill:'#D81E6E',id:'comp-a'},g);
+    halftoneOverInto(g,'comp-a','dotMed',.5);
+    el('circle',{cx,cy,r:13,fill:'#1c150e'},g);
+    if(v==='new'){
+      const ellB=el('ellipse',{cx:cx+58,cy:cy+22,rx:56,ry:26,fill:'#7C8B55',opacity:.9,id:'comp-b'},g);
+      halftoneOverInto(g,'comp-b','dotFine',.5);
+      el('circle',{cx:cx+58,cy:cy+22,r:10,fill:'#1c150e'},g);
+    }
+  };
+  layers.rhythm=(v)=>{
+    const g=document.getElementById('L-rhy'); g.innerHTML='';
+    const colors={morning:'#F0B429',afternoon:'#D9591F',evening:'#D81E6E',night:'#241C14'};
+    el('path',{d:'M140,300 L175,560 L105,560 Z',fill:colors[v]||'#F0B429',id:'rhy-shape'},g);
+    halftoneOverInto(g,'rhy-shape','dotMed',.4);
+  };
+  layers.ritual=(v)=>{
+    const g=document.getElementById('L-rit'); g.innerHTML='';
+    for(let i=0;i<v;i++) el('circle',{cx:70+i*36,cy:905,r:11,fill:'#1c150e'},g);
+    for(let i=v;i<7;i++) el('circle',{cx:70+i*36,cy:905,r:11,fill:'none',stroke:'#8a7f68','stroke-width':1.2,opacity:.5},g);
+  };
+  layers.body=(v)=>{
+    const g=document.getElementById('L-body'); g.innerHTML='';
+    const cx=350,cy=650, rot = v==='often'?0:16;
+    const gg=el('g',{transform:'rotate('+rot+' '+cx+' '+cy+')'},g);
+    el('circle',{cx,cy,r:34,fill:'none',stroke:'#D9591F','stroke-width':2},gg);
+    for(let a=0;a<360;a+=30){ const rad=a*Math.PI/180; el('line',{x1:cx+34*Math.cos(rad),y1:cy+34*Math.sin(rad),x2:cx+50*Math.cos(rad),y2:cy+50*Math.sin(rad),stroke:'#D9591F','stroke-width':2.5},gg); }
+    el('circle',{cx,cy,r:8,fill:'#D9591F'},gg);
+  };
+  layers.tabs=(v)=>{
+    const g=document.getElementById('L-tabs'); g.innerHTML='';
+    const n=Math.min(v,24); let seed=17;
+    function rnd(){ seed=(seed*1103515245+12345)%2147483648; return seed/2147483648; }
+    for(let i=0;i<n;i++){ const x=610+rnd()*70, y=40+rnd()*90; el('circle',{cx:x,cy:y,r:2.6+rnd()*2,fill:'#D81E6E',opacity:.7},g); }
+  };
+  layers.reply=(v)=>{
+    const g=document.getElementById('L-reply'); g.innerHTML='';
+    el('circle',{cx:200,cy:760,r:9,fill:'#241C14'},g);
+    el('circle',{cx:400,cy:790,r:9,fill:'#241C14'},g);
+    if(v==='now') el('line',{x1:200,y1:760,x2:400,y2:790,stroke:'#241C14','stroke-width':3},g);
+    else el('line',{x1:200,y1:760,x2:400,y2:790,stroke:'#241C14','stroke-width':1,'stroke-dasharray':'2 6'},g);
+  };
+  const sayPhrases={notyet:'Not yet',gone:'Long gone',anymin:'Any minute',still:'Still here',now:'Right now',almost:'Almost',late:'Too late'};
+  layers.saying=(v)=>{
+    const g=document.getElementById('L-say'); g.innerHTML='';
+    const txt=(sayPhrases[v]||'').toUpperCase();
+    if(!txt) return;
+    const cx=652,cy=660;
+    const t=el('text',{x:cx,y:cy,'text-anchor':'middle','font-family':"Georgia,'Times New Roman',serif",'font-size':62,'font-weight':'bold',fill:'#241C14','letter-spacing':'3',transform:'rotate(-90 '+cx+' '+cy+')'},g);
+    t.textContent=txt;
+  };
+
+  const Q=[
+    {id:'loss',weight:'heavy',type:'axis',label:"Distance from what you've lost time with",
+     stem:"Something you no longer have time for: still close, or far away?",
+     left:'Still close',right:'Far away now', def:0.5,
+     display:v=>v<0.34?'Still close':v<0.67?'Somewhere in between':'Far away now'},
+    {id:'finitude',weight:'heavy',type:'dial',label:'How often you think about time running out',
+     stem:"How often do you think time is running out?",
+     left:'Rarely',right:'Constantly', def:0.3,
+     display:v=>v<0.34?'Rarely':v<0.67?'Sometimes':'Constantly'},
+    {id:'company',weight:'heavy',type:'duo',label:'Someone new, five years from now',
+     stem:"When you picture five years ahead, is someone new standing there?",
+     options:[['same','The same people'],['new','Someone new']], def:'same'},
+    {id:'rhythm',weight:'medium',type:'cards',label:'The part of the day that feels like you',
+     stem:"Which part of the day feels most like you?",
+     options:[['morning','Morning'],['afternoon','Afternoon'],['evening','Evening'],['night','Night']], def:'morning'},
+    {id:'ritual',weight:'medium',type:'scrub',min:0,max:7,unit:'times / week',label:'Weekly repeats, on purpose',
+     stem:"How many times this week did you repeat something on purpose?",
+     def:2},
+    {id:'body',weight:'medium',type:'duo',label:'Waking before the alarm',
+     stem:"Does your body wake up before your alarm does?",
+     options:[['rarely','Rarely'],['often','Often']], def:'rarely'},
+    {id:'tabs',weight:'light',type:'scrub',min:0,max:30,unit:'tabs open',label:'Tabs open right now',
+     stem:"How many tabs do you have open right now?",
+     def:6},
+    {id:'reply',weight:'light',type:'duo',label:'Reply speed',
+     stem:"Reply right away, or leave people on read?",
+     options:[['away','On read'],['now','Right away']], def:'now'},
+    {id:'saying',weight:'light',type:'cards',label:'The thing you catch yourself saying about time',
+     stem:"Which of these do you say about time most often?",
+     options:[['notyet','Not yet'],['gone','Long gone'],['anymin','Any minute'],['still','Still here'],['now','Right now'],['almost','Almost'],['late','Too late']], def:'now'}
+  ];
+
+  const answers={}; Q.forEach(q=>answers[q.id]=q.def);
+  const skipped={};
+  const touched={};
+  let i=0, finished=false;
+
+  const dotsWrap=document.getElementById('aotDots');
+  Q.forEach(()=>{ const d=document.createElement('div'); d.className='aot-dot'; dotsWrap.appendChild(d); });
+
+  function applyLayer(q){
+    const v=answers[q.id];
+    if(q.id==='loss') layers.loss(v);
+    else if(q.id==='finitude') layers.finitude(v);
+    else if(q.id==='company') layers.company(v);
+    else if(q.id==='rhythm') layers.rhythm(v);
+    else if(q.id==='ritual') layers.ritual(v);
+    else if(q.id==='body') layers.body(v);
+    else if(q.id==='tabs') layers.tabs(v);
+    else if(q.id==='reply') layers.reply(v);
+    else if(q.id==='saying') layers.saying(v);
+  }
+  function updateDots(){
+    [...dotsWrap.children].forEach((d,idx)=>{
+      d.className='aot-dot'+(idx===i&&!finished?' current':(idx<i||finished?(skipped[Q[idx].id]?' skip':' done'):''));
+    });
+  }
+
+  const tagEl=document.getElementById('aotTag'), stemEl=document.getElementById('aotStem'),
+        controlEl=document.getElementById('aotControl'), hintEl=document.getElementById('aotHint'),
+        backBtn=document.getElementById('aotBack'), nextBtn=document.getElementById('aotNext'), skipEl=document.getElementById('aotSkip');
+
+  const qIdToLayer={loss:'L-loss',finitude:'L-fin',company:'L-comp',rhythm:'L-rhy',ritual:'L-rit',body:'L-body',tabs:'L-tabs',reply:'L-reply',saying:'L-say'};
+
+  function clearHighlight(){
+    hlLayer.innerHTML='';
+    layerOrder.forEach(id=>document.getElementById('L-'+id).classList.remove('aot-dim'));
+  }
+  function highlight(qid){
+    layerOrder.forEach(id=>{ if('L-'+id!==qIdToLayer[qid]) document.getElementById('L-'+id).classList.add('aot-dim'); });
+    const target=document.getElementById(qIdToLayer[qid]);
+    hlLayer.innerHTML='';
+    try{
+      const b=target.getBBox();
+      if(b.width>0){
+        el('rect',{x:b.x-10,y:b.y-10,width:b.width+20,height:b.height+20,fill:'none',stroke:'#D81E6E','stroke-width':2,'stroke-dasharray':'6 5',rx:8},hlLayer);
+      }
+    }catch(e){}
+  }
+
+  function renderLegend(){
+    tagEl.style.display='none';
+    stemEl.textContent='Every answer, and what it drew.';
+    hintEl.textContent='Hover a line to see which layer it shaped on the poster.';
+    backBtn.disabled=false; backBtn.textContent='Back to Q9';
+    nextBtn.disabled=true; nextBtn.textContent='Finish';
+    skipEl.style.display='none';
+    controlEl.innerHTML='';
+    const ul=document.createElement('ul'); ul.className='aot-legend';
+    const colors={heavy:'#D81E6E',medium:'#D9591F',light:'#7C8B55'};
+    Q.forEach(q=>{
+      const li=document.createElement('li');
+      const sw=document.createElement('div'); sw.className='sw'; sw.style.background=colors[q.weight];
+      const txt=document.createElement('div');
+      const lab=document.createElement('div'); lab.className='qlabel'; lab.textContent=q.label;
+      const ans=document.createElement('div'); ans.className='qanswer';
+      if(skipped[q.id]){ ans.classList.add('skiptxt'); ans.textContent='Skipped — left at its default'; }
+      else{
+        let txtVal;
+        if(q.display) txtVal=q.display(answers[q.id]);
+        else if(q.type==='scrub') txtVal=answers[q.id]+' '+q.unit;
+        else { const opt=q.options.find(o=>o[0]===answers[q.id]); txtVal=opt?opt[1]:answers[q.id]; }
+        ans.textContent=txtVal;
+      }
+      txt.appendChild(lab); txt.appendChild(ans);
+      li.appendChild(sw); li.appendChild(txt);
+      li.addEventListener('mouseenter',()=>highlight(q.id));
+      li.addEventListener('mouseleave',clearHighlight);
+      ul.appendChild(li);
+    });
+    controlEl.appendChild(ul);
+    updateDots();
+    updateProgress();
+  }
+
+  const progLabel=document.getElementById('aotProgLabel'), progWeight=document.getElementById('aotProgWeight'), progFill=document.getElementById('aotProgFill');
+  function updateProgress(){
+    if(finished){ progLabel.textContent='Complete'; progWeight.textContent=''; progFill.style.width='100%'; return; }
+    const q=Q[i];
+    progLabel.textContent='Question '+(i+1)+' of '+Q.length;
+    progWeight.textContent=q.weight;
+    progFill.style.width=(i/Q.length*100)+'%';
+  }
+
+  function render(){
+    skipEl.style.display='inline'; tagEl.style.display='inline-block'; clearHighlight();
+    const q=Q[i];
+    tagEl.textContent=q.weight; tagEl.className='aot-tag '+q.weight;
+    stemEl.textContent=q.stem;
+    hintEl.textContent='';
+    if(touched[q.id]) applyLayer(q);
+    backBtn.disabled = i===0; backBtn.textContent='Back';
+    nextBtn.textContent = i===Q.length-1 ? 'Finish' : 'Next';
+    controlEl.innerHTML='';
+    if(q.type==='duo') renderDuo(q);
+    else if(q.type==='cards') renderCards(q);
+    else if(q.type==='scrub') renderScrub(q);
+    else if(q.type==='axis') renderAxis(q);
+    else if(q.type==='dial') renderDial(q);
+    updateDots();
+    updateProgress();
+    nextBtn.disabled=!touched[q.id];
+  }
+
+  function commit(id,val){ answers[id]=val; touched[id]=true; delete skipped[id]; applyLayer(Q.find(q=>q.id===id)); }
+
+  function renderDuo(q){
+    const wrap=document.createElement('div'); wrap.className='aot-duo';
+    q.options.forEach(([key,label])=>{
+      const b=document.createElement('button'); b.textContent=label;
+      if(touched[q.id] && answers[q.id]===key) b.classList.add('sel');
+      b.onclick=()=>{ commit(q.id,key); render(); };
+      wrap.appendChild(b);
+    });
+    controlEl.appendChild(wrap);
+  }
+  function renderCards(q){
+    const wrap=document.createElement('div'); wrap.className='aot-cards';
+    q.options.forEach(([key,label])=>{
+      const b=document.createElement('button'); b.textContent=label;
+      if(touched[q.id] && answers[q.id]===key) b.classList.add('sel');
+      b.onclick=()=>{ commit(q.id,key); render(); };
+      wrap.appendChild(b);
+    });
+    controlEl.appendChild(wrap);
+  }
+  function renderScrub(q){
+    const wrap=document.createElement('div');
+    const val=document.createElement('div'); val.className='aot-scrub-val'; val.textContent=answers[q.id];
+    const unit=document.createElement('div'); unit.className='aot-scrub-unit'; unit.textContent=q.unit;
+    const track=document.createElement('div'); track.className='aot-scrub-track';
+    const fill=document.createElement('div'); fill.className='aot-scrub-fill';
+    const handle=document.createElement('div'); handle.className='aot-scrub-handle';
+    track.appendChild(fill); track.appendChild(handle);
+    const labels=document.createElement('div'); labels.className='aot-scrub-labels';
+    labels.innerHTML='<span>'+q.min+'</span><span>'+q.max+'</span>';
+    wrap.appendChild(val); wrap.appendChild(unit); wrap.appendChild(track); wrap.appendChild(labels);
+    controlEl.appendChild(wrap);
+    function place(v){ const pct=(v-q.min)/(q.max-q.min); fill.style.width=(pct*100)+'%'; handle.style.left=(pct*100)+'%'; }
+    place(answers[q.id]);
+    let dragging=false;
+    function fromClientX(cx){
+      const r=track.getBoundingClientRect();
+      let pct=(cx-r.left)/r.width; pct=Math.max(0,Math.min(1,pct));
+      const v=Math.round(q.min+pct*(q.max-q.min));
+      val.textContent=v; place(v); commit(q.id,v); nextBtn.disabled=false; updateDots();
+    }
+    handle.addEventListener('pointerdown',e=>{ dragging=true; handle.setPointerCapture(e.pointerId); });
+    track.addEventListener('pointerdown',e=>{ fromClientX(e.clientX); dragging=true; });
+    window.addEventListener('pointermove',e=>{ if(dragging) fromClientX(e.clientX); });
+    window.addEventListener('pointerup',()=>dragging=false);
+  }
+  function renderAxis(q){
+    const wrap=document.createElement('div');
+    const labels=document.createElement('div'); labels.className='aot-axis-labels';
+    labels.innerHTML='<span>'+q.left+'</span><span>'+q.right+'</span>';
+    const track=document.createElement('div'); track.className='aot-axis-track';
+    const handle=document.createElement('div'); handle.className='aot-axis-handle';
+    track.appendChild(handle);
+    wrap.appendChild(labels); wrap.appendChild(track);
+    controlEl.appendChild(wrap);
+    function place(v){ handle.style.left=(v*100)+'%'; }
+    place(answers[q.id]);
+    let dragging=false;
+    function fromClientX(cx){
+      const r=track.getBoundingClientRect();
+      let pct=(cx-r.left)/r.width; pct=Math.max(0,Math.min(1,pct));
+      place(pct); commit(q.id,pct); nextBtn.disabled=false; updateDots();
+    }
+    handle.addEventListener('pointerdown',e=>{dragging=true; handle.setPointerCapture(e.pointerId);});
+    track.addEventListener('pointerdown',e=>fromClientX(e.clientX));
+    window.addEventListener('pointermove',e=>{if(dragging) fromClientX(e.clientX);});
+    window.addEventListener('pointerup',()=>dragging=false);
+  }
+  function renderDial(q){
+    const wrap=document.createElement('div'); wrap.className='aot-dial-wrap';
+    const svgNS='http://www.w3.org/2000/svg';
+    const dsvg=document.createElementNS(svgNS,'svg'); dsvg.setAttribute('width',240); dsvg.setAttribute('height',140); dsvg.setAttribute('viewBox','0 0 240 140');
+    const cx=120,cy=120,rad=100;
+    function arcPoint(frac){ const a=Math.PI-frac*Math.PI; return [cx+rad*Math.cos(a), cy-rad*Math.sin(a)]; }
+    const track=document.createElementNS(svgNS,'path');
+    track.setAttribute('d','M '+arcPoint(0)[0]+' '+arcPoint(0)[1]+' A '+rad+' '+rad+' 0 0 1 '+arcPoint(1)[0]+' '+arcPoint(1)[1]);
+    track.setAttribute('stroke','rgba(0,0,0,.15)'); track.setAttribute('stroke-width','7'); track.setAttribute('fill','none');
+    dsvg.appendChild(track);
+    const fillArc=document.createElementNS(svgNS,'path');
+    fillArc.setAttribute('stroke','#D9591F'); fillArc.setAttribute('stroke-width','7'); fillArc.setAttribute('fill','none'); fillArc.setAttribute('stroke-linecap','round');
+    dsvg.appendChild(fillArc);
+    const handle=document.createElementNS(svgNS,'circle'); handle.setAttribute('r',11); handle.setAttribute('fill','#fff'); handle.setAttribute('stroke','#D9591F'); handle.setAttribute('stroke-width',3);
+    dsvg.appendChild(handle);
+    wrap.appendChild(dsvg);
+    const labels=document.createElement('div'); labels.className='aot-dial-labels';
+    labels.innerHTML='<span>'+q.left+'</span><span>'+q.right+'</span>';
+    wrap.appendChild(labels);
+    controlEl.appendChild(wrap);
+    function place(v){
+      const p=arcPoint(v); handle.setAttribute('cx',p[0]); handle.setAttribute('cy',p[1]);
+      fillArc.setAttribute('d','M '+arcPoint(0)[0]+' '+arcPoint(0)[1]+' A '+rad+' '+rad+' 0 0 1 '+p[0]+' '+p[1]);
+    }
+    place(answers[q.id]);
+    let dragging=false;
+    function fromPointer(clientX,clientY){
+      const r=dsvg.getBoundingClientRect();
+      const px=clientX-r.left, py=clientY-r.top;
+      let ang=Math.atan2(-(py-cy),px-cx);
+      let frac=1-(ang/Math.PI);
+      frac=Math.max(0,Math.min(1,frac));
+      place(frac); commit(q.id,frac); nextBtn.disabled=false; updateDots();
+    }
+    dsvg.addEventListener('pointerdown',e=>{dragging=true; fromPointer(e.clientX,e.clientY);});
+    window.addEventListener('pointermove',e=>{if(dragging) fromPointer(e.clientX,e.clientY);});
+    window.addEventListener('pointerup',()=>dragging=false);
+  }
+
+  backBtn.onclick=()=>{ if(finished){ finished=false; i=Q.length-1; render(); } else if(i>0){ i--; render(); } };
+  nextBtn.onclick=()=>{ if(i<Q.length-1){ i++; render(); } else { finished=true; renderLegend(); } };
+  skipEl.onclick=()=>{ skipped[Q[i].id]=true; if(i<Q.length-1){ i++; render(); } else { finished=true; renderLegend(); } };
+
+  render();
+})();
+</script>
+</body>
+</html>

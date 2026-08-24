@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<title>Architecture of Time</title>
+
+<!-- The mark, at 16 pixels: a K cut out of a 3 x 3 patch of the interface
+     lattice — see favicon.svg, which carries the geometry and the reasoning.
+     THE SVG COMES FIRST and the .ico second: a browser takes the first format
+     it understands, so the ones that can read SVG get the version that scales
+     and inverts under a dark scheme, and the ones that cannot fall back. The
+     two raster files are generated from the SVG's geometry by hand — run
+     tools/make-icons.py if favicon.svg ever changes. -->
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Wix+Madefor+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Style. Four files, loaded in the order they were written; later rules
+     override earlier ones, so the order is not cosmetic. -->
+<link rel="stylesheet" href="css/00-ground.css">
+<link rel="stylesheet" href="css/10-chrome.css">
+<link rel="stylesheet" href="css/20-aperture.css">
+<link rel="stylesheet" href="css/30-questions.css">
+</head>
+<body>
+<!--
+  APERTURE — direction contract for the opening screen (#landing step 1).
+  THESIS: the way in is a hole, not a page. This screen refuses the centered
+  plate: the interface grid is the ground, and the title is what is left where
+  the grid has been switched off.
+  AMENDED: the name and birthdate fields this screen was built around are gone,
+  and with them the mechanic where typing widened the aperture. The screen asks
+  for nothing now — title, one line, Begin. The hole still opens on the beat,
+  but it is no longer sized by what the visitor gives.
+  OWN-WORLD: inherited whole — ink #000, white at the field's own weights,
+  sheetline rgba(255,255,255,.55) for the rays, Frank Ruhl Libre display /
+  Miriam Libre UI / IBM Plex Mono. No new palette, no new face; settled-yellow
+  #F3E09B is spent only on the caret and the meter, never on the field. The
+  lattice is squares alone, unruled. The poster's own grid and sheet stay
+  hidden here per the four-step spec.
+  STORY: someone arrives, understands this is a made thing about their own
+  time, gives a name, and the giving is what opens the way through.
+  FIRST VIEWPORT: full-bleed cell field, live in hard-cut beats. Centred in
+  it, an aperture of extinguished cells snapped to whole gridlines. Inside:
+  "Architecture of Time" in the display serif arriving character by character
+  on the beat, one line beneath it, Begin at the aperture's lower edge. On
+  Begin it opens to full bleed and the first base question arrives.
+  FORM: aperture — candidate 4 of 7, assigned; seed key b66342ad.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the
+  finish review, the verdict, and DESIGN.md
+-->
+<div class="surface">
+
+  <div class="world" id="world">
+    <div class="gridlayer"></div>
+    <div class="vignette"></div>
+    <div class="sheet-lines" id="sheetLines">
+      <i class="v v1"></i><i class="v v2"></i><i class="h h1"></i><i class="h h2"></i>
+    </div>
+    <div class="stagebox">
+      <div id="frame">
+        <div class="ply live" id="plyA"></div>
+        <div class="ply" id="plyB"></div>
+      </div>
+      <!-- There is no separate "create the poster" button any more. The tenth
+           question's own Create IS that action (see saveLabel and showFinish):
+           the last answer and the making of the poster are one press, not two,
+           so nothing sits under the sheet announcing an ending. -->
+      <!-- the KAIRO mark: the name's five letters in grid cells, top-right, in
+           a composition chosen at random each load. A sibling of the dots inside
+           .stagebox so it pans and tilts on the same grid it is snapped to.
+           Built by buildLogo(), placed by placeLogo(), coloured by paintLogo().
+           It is also the way back: pressing it throws the session away and
+           reopens the start screen (see backToStart, which shares its wipe with
+           Reset), which is why it is a button and not a div. -->
+      <button type="button" id="kairo" aria-label="KAIRO, start over from the beginning"></button>
+      <div class="dots" id="dots"></div>
+      <aside class="popup" aria-hidden="true" aria-live="polite">
+        <div id="cardBody"></div>
+      </aside>
+      <div class="dots-int" id="dotsInt"></div>
+      <!-- The question system: step markers, panel and Save while the asking
+           lasts, and the three Save-as buttons and Back once the poster is made
+           (see renderFinish) — all on the lattice. A sibling of #frame inside
+           .stagebox because it has to pan and tilt with the sheet: it is drawn
+           on the same grid the sheet is snapped to. -->
+      <div id="qsys"></div>
+    </div>
+  </div>
+
+  <!-- fixed chrome: not part of the board, never moves -->
+  <!-- the grey corner square is gone: it was a placeholder for a mark that
+       never arrived, and on a ground this bare it read as a stray cell.
+       The KAIRO mark that replaced it is NOT here — it lives inside .stagebox
+       so it pans and tilts with the grid it is snapped to. -->
+  <button type="button" id="fmtBtn" aria-haspopup="true" aria-expanded="false"
+          aria-label="Poster format"></button>
+  <div id="fmtMenu" role="menu" aria-label="Poster format"></div>
+  <div id="status"></div>
+  <button type="button" id="reset" aria-label="Reset all answers">Reset</button>
+
+</div>
+
+<!-- The landing screen: fixed, opaque, covers the board AND the chrome above.
+     Deliberately a SIBLING of .surface, not a descendant — .surface sets
+     `perspective` for the board's pointer-tilt effect, and `perspective`
+     (like `transform`) makes an element a containing block for its own
+     position:fixed descendants. A #landing nested inside it would compute
+     its fixed inset against that 3D-perspective box instead of the true
+     viewport, and visibly drift off (confirmed: showed up ~150px short of
+     the bottom edge). Living outside .surface entirely keeps its containing
+     block the real viewport, full stop. -->
+<div id="landing" role="dialog" aria-modal="true" aria-label="Before we begin" aria-hidden="true">
+  <div id="landingBody"></div>
+</div>
+
+
+<!-- The programme. Classic scripts, no defer and no async: load order IS
+     execution order, and the numeric prefixes are that order. They share one
+     global scope, exactly as the single inline block used to. -->
+<script src="js/00-core.js"></script>
+<script src="js/10-bank.js"></script>
+<script src="js/poster/20-month.js"></script>
+<script src="js/poster/21-node.js"></script>
+<script src="js/poster/22-base-grid.js"></script>
+<script src="js/poster/23-beams.js"></script>
+<script src="js/poster/24-roll.js"></script>
+<script src="js/poster/25-rings.js"></script>
+<script src="js/poster/26-snake-layer.js"></script>
+<script src="js/poster/27-decades.js"></script>
+<script src="js/poster/28-lattice.js"></script>
+<script src="js/poster/29-word.js"></script>
+<script src="js/poster/30-svg.js"></script>
+<script src="js/ui/40-dots.js"></script>
+<script src="js/ui/41-snake.js"></script>
+<script src="js/ui/42-wheel.js"></script>
+<script src="js/ui/43-horizon.js"></script>
+<script src="js/ui/44-snake-draw.js"></script>
+<script src="js/ui/45-month-ring.js"></script>
+<script src="js/app/50-landing.js"></script>
+<script src="js/app/51-flow.js"></script>
+<script src="js/app/52-controls.js"></script>
+<script src="js/app/53-card.js"></script>
+<script src="js/app/54-draw.js"></script>
+<script src="js/app/55-reset.js"></script>
+<script src="js/app/56-tilt.js"></script>
+<script src="js/app/57-transition.js"></script>
+<script src="js/app/60-format.js"></script>
+<script src="js/app/61-relayout.js"></script>
+<script src="js/app/62-hover-notes.js"></script>
+<script src="js/app/63-record.js"></script>
+<script src="js/app/70-collect.js"></script>
+<script src="js/app/71-qsys-input.js"></script>
+<script src="js/app/72-boot.js"></script>
+</body>
+</html>

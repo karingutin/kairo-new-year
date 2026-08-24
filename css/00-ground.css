@@ -1,0 +1,402 @@
+
+
+
+
+
+
+
+  /* THE ONE REGISTERED CUSTOM PROPERTY, and it is registered for exactly one
+     reason: the lattice's colour is consumed inside a background-image (two
+     gradients — see .gridlayer), and an unregistered custom property inside an
+     image cannot be interpolated, so the board's flip to the negative would cut
+     while everything around it faded. Declaring its syntax makes --gridline
+     itself animatable, and the gradients re-resolve on every frame of it.
+     Every OTHER colour variable here is consumed straight as a colour value, so
+     the property that consumes it transitions on its own and needs nothing.
+     initial-value must restate the light value: it is what the property falls
+     back to, and getting it wrong shows up as a wrong grid for one frame. */
+  @property --gridline{syntax:'<color>';inherits:true;initial-value:#D7D4CC}
+
+  :root{
+    /* interface — fixed, never touched by answers */
+    /* The board's ground. Off-white, not white: pure white would leave the
+       question panel — which IS white — with nothing to sit on. */
+    --ink:#ECECEC;
+    /* THE INTERFACE PALETTE LIVES HERE AND NOWHERE ELSE.
+       The opening screen used to declare its own inverted set, so changing the
+       board's colour left it behind. It now inherits every one of these, which
+       is the rule from here on: change a colour once and the whole interface
+       follows. Only .popup — the old floating card, no longer reached from the
+       board — still carries its own, and it is on its way out. */
+    --fg:#141414;                       /* interface ink */
+    --dim:rgba(0,0,0,.50);              /* secondary ink */
+    --line:rgba(0,0,0,.16);             /* hairlines */
+    --surface:#ECECEC;                  /* what ink is set on */
+    --accent:#141414;
+    --picker:none;
+    /* Measured off the question-system mock: #2F2F2F on black. Deliberately
+       dimmer than the .20 white it was — the snake and its panel are what the
+       eye should find on this ground, and a brighter lattice competed. */
+    --gridline:#D7D4CC;
+    --sheetline:rgba(0,0,0,.34);        /* the lines bounding the sheet: darker */
+    --dot:#D6D6D6;
+    /* THE FIXED CHROME'S THREE TONES — the Reset control's ink, the rule under
+       it, and what both go to on hover. They are variables and not literals for
+       one reason: the board inverts when the poster is made (see body.made at
+       the foot of this file), and Reset and the Back beside the poster have to
+       invert with it. Every quiet control on the ground reads these three. */
+    --chrome-ink:rgba(0,0,0,.42);
+    --chrome-line:rgba(0,0,0,.22);
+    --chrome-hot:#000000;
+
+    /* THE QUESTION SYSTEM — every value measured off the mock.
+       One family, three weights of the same red: the trail behind you, the
+       step you are on, and the words themselves. */
+    /* The Figma redesign takes the question system to black on white: the ink is
+       pure black, an answered step greys back, the panel stays white. */
+    --q-past:#D6D6D6;              /* a question already answered — greyed back */
+    --q-now:#000000;               /* the step you are on, and SAVE — black */
+    --q-panel:#FFFFFF;             /* the panel the question is set on */
+    --q-text:#000000;              /* the question, and the chosen value — black */
+    --q-face:var(--face);
+    /* Answered questions. A light yellow rather than a dimmer white, so the
+       three states of a question separate by HUE and not only by strength:
+       white = still to do, yellow = settled. It is a pale relative of the
+       poster's own morning yellow, which ties the board to the artwork. */
+    --done:#F3E09B;
+
+    /* GEOMETRY — and the one rule that matters here:
+       THE GRID NEVER MOVES AND NEVER CHANGES SCALE.
+
+       --cell and the two format numbers are all written by JS (cellSize and
+       syncSheet); CSS only consumes them. One source of truth, so the pixel
+       grid the dots are placed on and the pixel grid the background paints can
+       never disagree.
+
+       --cell is a function of the VIEWPORT alone. It does not know which
+       format is showing, which is exactly why a format change leaves the grid,
+       the dot field and the corner chrome untouched: the only thing that moves
+       is the sheet, from one set of grid lines to another. */
+    /* All five are written by JS — cellSize() and syncSheet(). CSS only
+       consumes them. The sheet is SNAPPED to whole cells from the origin
+       rather than centred arithmetically, which is what lets a format have an
+       odd number of cells and still land all four edges on grid lines; an odd
+       count then sits half a cell off centre, which nobody can see. */
+    --cell:20px;
+    --sheet-w:420px;
+    --sheet-h:600px;
+    --sheet-x:510px;
+    --sheet-y:150px;
+    /* The made sheet, the poster layer's own height, and the depth of the cut
+       that holds the data row off the foot of the sheet until it is earned.
+       DECLARED HERE AND NOT ONLY IN JS, unlike the five above, and the reason is
+       what happens when one of them is missing rather than stale. A stale
+       --sheet-w is a poster the wrong size for one frame. A missing --sheet-cut
+       makes `clip-path:inset(0 0 var(--cut) 0)` an invalid declaration, which
+       does not clip a little — it does not clip AT ALL, and the record shows
+       itself in full on a sheet nobody has finished yet. So there is always a
+       number here to fall back on, and it is one row of the default cell. */
+    --sheet-hm:620px;
+    --ply-h:620px;
+    --sheet-cut:20px;
+    --over:160px;                  /* world overscan, so panning never shows an edge */
+    --morph:620ms;
+    /* HOW LONG THE BOARD TAKES TO TURN OVER. It started at --morph's own 620,
+       on the argument that the sheet changing format and the ground going to
+       its negative should be the same move at two scales. They are not: a
+       format morph is the poster REARRANGING and wants the time to be followed,
+       while the flip is a light being switched — nobody watches a room go dark,
+       they notice that it has. 460 (Karin, 17 Aug).
+       AND IT DECELERATES: --eo, not --ease. --ease is symmetrical, so the flip
+       crept out of the light, ran, and crept into the dark, which put the slow
+       part at both ends where there is nothing to see. --eo leaves at once and
+       settles, so almost all of the change is over early and the last of it just
+       arrives. Every rule that flips uses these two together — see body below,
+       .surface, #reset, .sheet-lines i and .qback. */
+    --flip:460ms;
+    --ease:cubic-bezier(.66,0,.34,1);
+    --eo:cubic-bezier(.33,1,.68,1);     /* easeOutCubic: the tool-layer entrances/morphs decelerate into rest */
+
+    /* ONE FACE for the whole interface. The three roles stay as separate
+       variables — display, ui, mono — because the code says which voice it is
+       speaking in and that is worth keeping legible even when all three resolve
+       to the same family. Only the POSTER still loads a face of its own
+       (ThermoTrial-Zero, and only to be rasterised into a mask). */
+    --face:'Wix Madefor Display',system-ui,sans-serif;
+    --display:var(--face);
+    --ui:var(--face);
+    --mono:var(--face);
+  }
+  /* The month layer's letterforms. Loaded only to be RASTERISED into an
+     offscreen mask that circles are packed into — no text is ever set in it on
+     the page or on the poster, so nothing here reaches the printed sheet as
+     type. If the fetch fails the mask falls back to the display serif and the
+     silhouette simply comes out in different letter shapes (see monthLayer). */
+  @font-face{
+    font-family:'ThermoTrial-Zero';
+    src:url('https://base44.app/api/apps/69cbcd44d3da2a5cef013f5e/files/mp/public/69cbcd44d3da2a5cef013f5e/0531d7dcf_font_font_mshiunpu.otf') format('opentype');
+    font-weight:400; font-style:normal; font-display:swap;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden}
+  /* THE FLIP IS DRIVEN FROM HERE. body.made is what changes, so body is the
+     element whose computed values move — and both the ground it paints and the
+     lattice colour it hands DOWN are transitioned on it. An inherited value
+     that is mid-transition on the parent arrives at the child mid-transition
+     too, which is what carries the fade into .gridlayer without .gridlayer
+     needing to know anything about it. */
+  body{background:var(--ink);font-family:var(--ui);line-height:1.5;-webkit-font-smoothing:antialiased;
+       transition:background-color var(--flip) var(--eo),
+                  --gridline var(--flip) var(--eo)}
+
+  /* the grid is the background of the whole interface. it is anchored to the
+     sheet's top-left corner, so the sheet sits inside it rather than on it. */
+  /* The stage. Holds the perspective; itself never moves. */
+  .surface{position:fixed;inset:0;background-color:var(--ink);
+           overflow:hidden;perspective:1500px;perspective-origin:50% 50%;
+           transition:background-color var(--flip) var(--eo)}
+
+  /* The world: everything that belongs to the board. Panned and tilted as one
+     piece, so the grid, the sheet and the dots can never drift apart.
+     Oversized by --over on every side, so panning never exposes an edge. */
+  /* NOT preserve-3d. Under preserve-3d the browser sorts these children by 3D
+     depth and ignores z-index, which makes hit-testing pick the wrong layer at
+     random. The world's own rotation still works because .surface holds the
+     perspective; the children only need to stay flat. */
+  .world{position:absolute;inset:calc(-1 * var(--over));z-index:1;
+         transform-style:flat;will-change:transform}
+
+  /* The grid runs unbroken to every edge — no mask, no fade. It covers the
+     world including the overscan, so panning never reveals a bare corner.
+
+     Anchored to the CENTRE of the viewport, not to the sheet's corner. That is
+     the whole reason a format change leaves it untouched: a line falls exactly
+     on the centre and repeats outward, and because every format is an even
+     number of cells the centred sheet's four edges land on lines whatever
+     format is showing. Anchoring to the sheet's corner would drag the entire
+     grid sideways every time the poster changed shape. */
+  .gridlayer{position:absolute;inset:0;z-index:0;
+    background-image:
+      linear-gradient(to right, var(--gridline) 0 1px, transparent 1px),
+      linear-gradient(to bottom, var(--gridline) 0 1px, transparent 1px);
+    background-size:var(--cell) var(--cell);
+    background-position:calc(50vw + var(--over)) calc(50dvh + var(--over))}
+
+  /* Viewport-sized box inside the world, so every JS coordinate stays
+     viewport-relative exactly as before. */
+  /* No z-index: this must NOT become a stacking context, so its children can
+     interleave with the sheet lines that sit on the world. */
+  .stagebox{position:absolute;left:var(--over);top:var(--over);
+            width:100vw;height:100dvh}
+
+  /* Shading that belongs to the board: it sits above the grid but below the
+     sheet and the card, so content never gets dimmed by it. */
+  .vignette{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:radial-gradient(ellipse 92% 92% at 50% 50%,
+      transparent 70%, rgba(0,0,0,.22) 100%)}
+
+  .dots{position:absolute;inset:0;pointer-events:none;z-index:4}
+  /* This layer covers the whole screen and sits above the card, so it MUST be
+     click-through. Only .qdot inside it takes pointer events. */
+  .dots-int{position:absolute;inset:0;z-index:6;pointer-events:none}
+  /* The dots do not move on a format change at all. They are placed clear of
+     the LARGEST footprint any format can occupy, so no format can ever reach
+     them — which is what makes the change seamless: only the sheet's four
+     edges and the artwork move, over a grid and a dot field that hold still. */
+  .dots svg,.dots-int svg{display:block;width:100%;height:100%}
+  .dots-int svg{pointer-events:none}
+
+  /* a question dot: ring = unanswered, disc = answered, pulse = do this next */
+  .qdot{pointer-events:auto;cursor:pointer;outline:none}
+  .qdot .hit{pointer-events:all}
+  .qdot .hit{fill:transparent}
+  /* THE CATALOGUE — three readings, and only three:
+       still to do   white disc, large
+       answered      light yellow disc, small
+       skipped       light yellow ring, small, broken
+     WHITE MEANS "STILL TO DO" and YELLOW MEANS SETTLED, so the states separate
+     by hue first and weight second — and the boldest marks on the board are
+     always the ones asking for something. On top of that sits the ORDER: radius
+     and brightness both fall off with how far ahead of the cursor a question
+     sits, so what is next is the biggest, brightest disc and the rest recede
+     toward the grid. All of it is set per dot by renderDots. */
+  /* r and opacity are NOT transitioned: they are re-derived from the live cell
+     size on every frame of a format morph, and a transition would make each
+     dot chase its own position a fifth of a second behind the grid. */
+  .qdot .core{fill:none;stroke:#FFFFFF;stroke-width:1.2;
+              transition:fill .2s ease,stroke .2s ease,stroke-width .15s ease}
+  .qdot .core.filled{fill:#FFFFFF}
+  /* answered: a small filled disc in the settled colour */
+  .qdot .core.done{fill:var(--done);stroke:var(--done)}
+  /* skipped: the same colour, but hollow and broken, so the board never claims
+     an answer that was never given */
+  .qdot .core.passed{fill:none;stroke:var(--done)}
+  /* A ring that only shows on hover. Needed because the dots are now mostly
+     filled, and thickening a white outline inside a white disc is invisible —
+     the hover has to happen OUTSIDE the mark to be seen at all. */
+  .qdot .hover{fill:none;stroke:#FFFFFF;stroke-width:1;opacity:0;
+               transition:opacity .14s ease}
+  .qdot:not(.locked):hover .hover,
+  .qdot:focus-visible .hover{opacity:.75}
+  .qdot:not(.locked):hover .core,
+  .qdot:focus-visible .core{opacity:1}
+  /* Locked dots do not answer the pointer AND say so: no hover ring, and the
+     cursor stays a plain arrow. Previously they looked and felt identical to
+     open ones right up until a click did nothing. */
+  .qdot.locked{pointer-events:none;cursor:default}
+
+  /* the mark that says where to begin — only while nothing has been answered */
+  .startcue{font-family:var(--mono);font-size:8.5px;letter-spacing:.2em;
+            text-transform:uppercase;fill:rgba(255,255,255,.75)}
+  /* The line that reaches from the question just answered toward the next one:
+     a straight run between the two points, as the crow flies.
+
+     The motion is meant to LEAD rather than announce. It fades up instead of
+     switching on, extends on a strong ease-out so it decelerates into the dot
+     it is pointing at, rests there long enough to be followed, then leaves
+     slowly. Nothing in it snaps — an earlier version drew fast at full opacity
+     and read as a flash, which pulled the eye instead of guiding it. */
+  /* A WAKE, not a line being drawn.
+     The stroke is one short dash in a very long gap, and what animates is the
+     offset — so a segment of fixed length TRAVELS the whole curve and leaves at
+     the far end. The full path is never visible at once, which is the
+     difference between something moving across the board and something being
+     drawn onto it. Same idea as a trim path chasing its own start.
+     --o0 / --o1 are the two ends of that travel, worked out per curve in JS. */
+  /* Two animations rather than one, on purpose: the travel needs a single
+     unbroken ease from end to end, and mixing opacity keyframes into it would
+     chop that curve into eased fragments and put a kink in the motion. So the
+     offset animation holds exactly three keyframes — go, arrive, stay — and the
+     fade rides alongside it on its own linear track. */
+  /* A SHOOTING STAR.
+     Away quickly, decelerating only slightly, and the tail is already
+     dissipating before the head lands — so it arrives and is gone in the same
+     motion. There is deliberately NO rest at the far end: an earlier version
+     held the wake on the target for a beat, and a quarter second of a line
+     sitting still next to a dot stops reading as something falling and starts
+     reading as a pointer that has been left there. */
+  .guide{fill:none;stroke:#FFFFFF;stroke-width:1.1;stroke-linecap:round;
+         animation:trail 1150ms cubic-bezier(.12,.62,.3,1) forwards,
+                   trailFade 1150ms linear forwards}
+  /* the head reaches the target at 92% — it still genuinely arrives, see --o1 —
+     and the last 8% is only there so it does not vanish mid-stride */
+  @keyframes trail{
+    0%  {stroke-dashoffset:var(--o0)}
+    92% {stroke-dashoffset:var(--o1)}
+    100%{stroke-dashoffset:var(--o1)}
+  }
+  /* fading from 58% means the streak is thinning out over the last third of its
+     flight, which is what makes the arrival dissolve instead of stop */
+  @keyframes trailFade{
+    0%{opacity:0} 7%{opacity:.7} 58%{opacity:.7} 100%{opacity:0}
+  }
+  /* The same wake again, clipped to the sheet and a fraction of the weight. It
+     has to cross the artwork whenever the two dots sit on opposite sides of it,
+     and at full strength that reads as a scratch across the poster. Drawing it
+     twice under opposite clips is what lets one gesture change weight partway
+     along instead of becoming two — both copies share the timing exactly, so
+     they travel as one. */
+  .guide.under{animation-name:trail,trailFadeFaint}
+  @keyframes trailFadeFaint{
+    0%{opacity:0} 7%{opacity:.18} 58%{opacity:.18} 100%{opacity:0}
+  }
+  .qdot .halo{fill:none;stroke:rgba(255,255,255,.4);stroke-width:1}
+  .qdot .pulse{fill:none;stroke:#FFFFFF;stroke-width:1.4;
+               transform-box:fill-box;transform-origin:center;
+               animation:ring 2.1s cubic-bezier(.2,.7,.3,1) infinite}
+  @keyframes ring{0%{transform:scale(1);opacity:.7}70%{opacity:0}100%{transform:scale(3);opacity:0}}
+
+  /* pointer-events off on the strip itself: it must never intercept a click
+     meant for a card that happens to sit under it. Only its link takes them. */
+  #status{display:none;pointer-events:none;position:absolute;left:max(16px, calc(1.6 * var(--cell)));bottom:max(14px, calc(1.3 * var(--cell)));z-index:8;
+          font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+          color:rgba(0,0,0,.46)}
+  .statline{display:flex;align-items:center;gap:12px}
+  .sep{display:inline-block;width:14px;height:1px;background:rgba(0,0,0,.28)}
+  .build{opacity:.4}
+  .cue{animation:breathe 2.6s ease-in-out infinite}
+  @keyframes breathe{0%,100%{opacity:.45}50%{opacity:1}}
+  #reset{position:absolute;right:max(16px, calc(1.6 * var(--cell)));bottom:max(14px, calc(1.3 * var(--cell)));z-index:8;
+         font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+         background:transparent;border:0;padding:0 0 1px;cursor:pointer;
+         color:var(--chrome-ink);border-bottom:1px solid var(--chrome-line);
+         transition:color var(--flip) var(--eo),border-color var(--flip) var(--eo),
+                    bottom var(--flip) var(--eo)}
+  /* THE MADE POSITION IS NOT HERE, it is written as an inline length by
+     placeReset(). The made sheet brings its bottom bounding line down a cell,
+     onto this word (Karin, 17 Aug), and where the label has to stand to clear it
+     is a function of the sheet's box — which JS already owns and CSS can only
+     reach through a chain of custom properties. The transition above is what
+     makes it travel rather than jump, on the sheet's own clock. */
+  /* TWO DURATIONS ON ONE PAIR OF PROPERTIES, and the shorter one lives on the
+     hover rule rather than on the base. The same two colours are moved by two
+     different events: the pointer arriving, which must answer at once, and the
+     board turning over, which must not — at .15s this label went white while
+     the ground behind it was still white, and disappeared for a third of a
+     second every time the poster was made. The base rule owns the flip's
+     duration; :hover overrides it for as long as the pointer is there, so
+     hovering is instant and letting go eases back on the board's own clock. */
+  #reset:hover{color:var(--chrome-hot);border-bottom-color:var(--chrome-hot);
+               transition-duration:.15s}
+  #reset:disabled{opacity:.3;cursor:default;border-bottom-color:transparent}
+  #reset:disabled:hover{color:var(--chrome-ink)}
+
+  /* Placeholder, snapped to grid lines by placeChrome(). Drop real content
+     inside; sized to 3 x 3 grid cells. */
+  .chrome{position:absolute;z-index:8;pointer-events:none}   /* below the card; inert for now */
+
+  /* =====================================================================
+     THE POSTER IS MADE — and the board turns itself off around it.
+
+     EVERY VALUE HERE IS THE NEGATIVE OF THE ONE ABOVE IT, and that is the
+     whole rule: not a second palette that happens to be dark, but the same
+     palette read the other way round. #ECECEC becomes #131313, #D7D4CC
+     becomes #282B33, and every rgba(0,0,0,a) becomes rgba(255,255,255,a) at
+     its own alpha. So the RELATIONSHIPS survive the flip — the lattice is
+     one step off the ground on the dark side exactly as it was on the light
+     side, which is why it comes out dark grey and not white. A white grid
+     was the first attempt and it read as a new thing on the screen rather
+     than as the same board seen inverted (Karin, 16 Aug).
+
+     Everything drawn ON the ground — the mark, Reset, Back, the lines
+     bounding the sheet — takes the flip with it, which is the whole reason
+     those are variables and not literals.
+
+     THE POSTER IS NOT IN THIS RULE, AND MUST NEVER BE. Not the sheet, not
+     PAPER, not a single layer's colour: the piece that was just made is the
+     one thing on the screen that does not change when the interface steps
+     back from it. That is what the inversion is FOR — the artwork is now the
+     only lit thing on a board that has gone dark.
+
+     It cuts rather than fades, like every other state change in this piece:
+     --gridline is consumed inside a background-image, and a custom property
+     in a gradient cannot be interpolated without registering it. Nothing to
+     work around — the opening screen runs on hard cuts too.
+     ===================================================================== */
+  body.made{
+    --ink:#131313;                      /* the negative of #ECECEC */
+    --surface:#131313;
+    --gridline:#282B33;                 /* the negative of #D7D4CC: dark grey, one step off the ground */
+    --fg:#EBEBEB;                       /* the negative of #141414 */
+    --dim:rgba(255,255,255,.50);
+    --line:rgba(255,255,255,.16);
+    --accent:#EBEBEB;
+    --sheetline:rgba(255,255,255,.34);  /* the darker lines become the lighter ones */
+    --dot:#292929;
+    /* THE ONE PLACE THE FLIP IS NOT LITERAL. A hairline of white on black
+       carries less weight than the same hairline of black on white — the same
+       alpha does not buy the same read — so the two quiet controls, Reset and
+       the Back beside the poster, are given back what the flip costs them.
+       Karin, 16 Aug: they have to be MORE readable inverted, not equally
+       faint. Everything else on this list is the exact negative. */
+    --chrome-ink:rgba(255,255,255,.62);
+    --chrome-line:rgba(255,255,255,.36);
+    --chrome-hot:#FFFFFF;
+  }
+  /* The mark inverts with the ground: its three cells are var(--fg), which has
+     just become the light tone, so the name set across them has to go dark or
+     it vanishes into its own ground. The coloured cell keeps the colourway's
+     ink — that is the poster's colour, and the poster does not change — and the
+     two letters over it simply read dark on it like the other three. */
+  body.made #kairo .kw{color:#131313}
+

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lattice port — pixel diff vs Brik</title>
+<style>
+  body{margin:0;background:#111;color:#ddd;font:13px system-ui;padding:16px}
+  h2{font-size:14px;margin:18px 0 6px}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+  figure{margin:0}
+  figcaption{font-size:11px;color:#9a9;margin-top:4px}
+  canvas{background:#EDE1C6;image-rendering:pixelated;width:280px;height:400px;border:1px solid #333}
+  iframe{width:820px;height:1040px;border:0;position:absolute;left:-9999px;top:0}
+  #out{white-space:pre;font-family:ui-monospace,monospace;font-size:12px;color:#8f8;margin-top:8px}
+  .bad{color:#f88}
+</style>
+</head>
+<body>
+<h1 style="font-size:15px">Lattice SVG port vs Brik tool (700×1000)</h1>
+<div id="out">running…</div>
+<div id="views"></div>
+
+<iframe id="fWeek" src="week.html"></iframe>
+<iframe id="fWeekend" src="weekend.html"></iframe>
+
+<script src="port.js"></script>
+<script>
+const W=700,H=1000;
+const out=document.getElementById('out');
+const views=document.getElementById('views');
+function log(s,bad){ out.innerHTML += '\n'+(bad?'<span class="bad">':'<span>')+s+'</span>'; }
+
+function waitFrame(win,ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function grabTool(iframe){
+  const win=iframe.contentWindow;
+  const cvs=win.document.getElementById('canvas');
+  // Force the tool to render at the poster size. setExportDimensions first
+  // (also dispatches a resize that its own resizeCanvas clobbers), THEN pin the
+  // backing store directly so draw() picks 700x1000 and nothing resets it.
+  win.CanvasRuntimeAPI.setExportDimensions(W,H);
+  await waitFrame(win,120);
+  cvs.width=W; cvs.height=H;
+  await waitFrame(win,900);           // let a few RAF frames settle at the pinned size
+  const ctx=cvs.getContext('2d');
+  const dpr=win.devicePixelRatio||1;
+  return { data: ctx.getImageData(0,0,W,H), dpr, w:cvs.width, h:cvs.height };
+}
+
+function rasterizeSVG(svg){
+  return new Promise((res,rej)=>{
+    const blob=new Blob([svg],{type:'image/svg+xml'});
+    const url=URL.createObjectURL(blob);
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas'); c.width=W; c.height=H;
+      const cx=c.getContext('2d');
+      // Match the tool: paper-less transparent canvas, tool draws its own fills.
+      cx.drawImage(img,0,0,W,H);
+      URL.revokeObjectURL(url);
+      res({canvas:c, data:cx.getImageData(0,0,W,H)});
+    };
+    img.onerror=rej;
+    img.src=url;
+  });
+}
+
+function diff(a,b){
+  const n=a.data.length; let mism=0, sum=0, maxd=0;
+  const dimg=new ImageData(W,H);
+  for(let i=0;i<n;i+=4){
+    const dr=Math.abs(a.data[i]-b.data[i]);
+    const dg=Math.abs(a.data[i+1]-b.data[i+1]);
+    const db=Math.abs(a.data[i+2]-b.data[i+2]);
+    const d=Math.max(dr,dg,db);
+    sum+=d; if(d>maxd)maxd=d;
+    if(d>50){ mism++; dimg.data[i]=255; dimg.data[i+1]=0; dimg.data[i+2]=0; dimg.data[i+3]=255; }
+    else { dimg.data[i]=0; dimg.data[i+1]=0; dimg.data[i+2]=0; dimg.data[i+3]=255; }
+  }
+  const px=n/4;
+  return { mism, pct:(100*mism/px), mean:(sum/px), maxd, dimg };
+}
+
+function show(title, toolCanvasData, portCanvas, dimg){
+  const wrap=document.createElement('div');
+  wrap.innerHTML='<h2>'+title+'</h2>';
+  const row=document.createElement('div'); row.className='row';
+  // tool
+  const tc=document.createElement('canvas'); tc.width=W; tc.height=H; tc.getContext('2d').putImageData(toolCanvasData,0,0);
+  const dc=document.createElement('canvas'); dc.width=W; dc.height=H; dc.getContext('2d').putImageData(dimg,0,0);
+  function fig(cv,cap){ const f=document.createElement('figure'); f.appendChild(cv); const c=document.createElement('figcaption'); c.textContent=cap; f.appendChild(c); return f; }
+  row.appendChild(fig(tc,'Brik (ground truth)'));
+  row.appendChild(fig(portCanvas,'SVG port'));
+  row.appendChild(fig(dc,'diff (red = mismatch >50)'));
+  wrap.appendChild(row); views.appendChild(wrap);
+}
+
+async function run(){
+  const presets={};
+  for(const name of ['week','weekend']){
+    presets[name]=await fetch(name+'.preset.json').then(r=>r.json());
+  }
+  out.textContent='';
+  for(const [name,iframeId] of [['week','fWeek'],['weekend','fWeekend']]){
+    const iframe=document.getElementById(iframeId);
+    // ensure loaded
+    if(iframe.contentWindow.document.readyState!=='complete'){ await new Promise(r=>iframe.addEventListener('load',r,{once:true})); }
+    const tool=await grabTool(iframe);
+    const svg=latticeSVG(presets[name],W,H,{dpr:tool.dpr});
+    const port=await rasterizeSVG(svg);
+    const d=diff(tool.data,port.data);
+    const bad = d.pct>0.5;
+    log(name.toUpperCase()+':  dpr='+tool.dpr+'  toolCanvas='+tool.w+'x'+tool.h+'  mismatch='+d.pct.toFixed(3)+'%  meanΔ='+d.mean.toFixed(2)+'  maxΔ='+d.maxd, bad);
+    show(name+'  (cross='+presets[name].weight_cross+', invert='+presets[name].invert_ratio+')', tool.data, port.canvas, d.dimg);
+  }
+  log('\ndone.');
+}
+window.addEventListener('load',()=>{ setTimeout(run,300); });
+</script>
+</body>
+</html>

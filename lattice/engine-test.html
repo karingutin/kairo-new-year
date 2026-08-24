@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>engine vs port</title>
+<style>body{margin:0;background:#111;color:#ddd;font:13px system-ui;padding:14px}
+#out{font-family:ui-monospace,monospace;color:#8f8;white-space:pre}.bad{color:#f88}</style></head>
+<body>
+<h1 style="font-size:15px">engine.js vs verified port.js (both dpr=1)</h1>
+<div id="out">running…</div>
+<script>let ansVal=50; function ans(k){return ansVal;}</script>
+<script src="port.js"></script>
+<script src="engine.js"></script>
+<script>
+const W=700,H=1000, out=document.getElementById('out');
+function log(s,bad){out.innerHTML+='\n'+(bad?'<span class="bad">':'<span>')+s+'</span>';}
+function raster(svg){if(svg.indexOf('xmlns')<0)svg=svg.replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ');return new Promise((res,rej)=>{const b=new Blob([svg],{type:'image/svg+xml'}),u=URL.createObjectURL(b),img=new Image();
+  img.onload=()=>{const c=document.createElement('canvas');c.width=W;c.height=H;c.getContext('2d').drawImage(img,0,0,W,H);URL.revokeObjectURL(u);res(c.getContext('2d').getImageData(0,0,W,H));};img.onerror=rej;img.src=u;});}
+function diff(a,b){let m=0,mx=0;const n=a.data.length;for(let i=0;i<n;i+=4){const d=Math.max(Math.abs(a.data[i]-b.data[i]),Math.abs(a.data[i+1]-b.data[i+1]),Math.abs(a.data[i+2]-b.data[i+2]));if(d>mx)mx=d;if(d>10)m++;}return{pct:100*m/(n/4),mx};}
+async function run(){
+  out.textContent='';
+  const presets={week:await fetch('week.preset.json').then(r=>r.json()), weekend:await fetch('weekend.preset.json').then(r=>r.json())};
+  for(const [name,val] of [['week',0],['weekend',100]]){
+    ansVal=val;
+    // engine: colours F5242B/FAF8F8 -> recolour F5242B to FF0000 to match port's tool colours
+    const engSvg=latticeLayer({w:W,h:H}).replace(/#F5242B/g,'#FF0000');
+    const portSvg=latticeSVG(presets[name],W,H,{dpr:1});   // port at dpr=1, tool colours
+    const [ei,pi]=[await raster(engSvg),await raster(portSvg)];
+    const d=diff(ei,pi);
+    log(name.toUpperCase()+' (val='+val+'): engine-vs-port mismatch='+d.pct.toFixed(4)+'%  maxΔ='+d.mx, d.pct>0.05);
+  }
+  log('\ndone');
+}
+window.addEventListener('load',()=>setTimeout(run,200));
+</script>
+</body></html>

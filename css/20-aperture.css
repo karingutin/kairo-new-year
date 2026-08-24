@@ -1,0 +1,392 @@
+  /* ---------------------------------------------------------------------
+     THE LANDING SCREEN — fully opaque, covers the board AND the chrome, so
+     nothing of the poster is visible behind it. Not part of the .popup card
+     system on purpose: a question card is meant to float over a visible
+     board; this screen is what comes before the board is shown at all.
+
+     --fg/--surface/--dim/--line/--picker are redeclared here, inverted for a
+     dark full-bleed screen — which is what lets .btn/.fields/.fld below be
+     reused completely unchanged. Those classes read the SAME variable names
+     inside .popup (light card, dark text) and here (dark screen, light
+     text); custom properties resolve from whichever ancestor set them, so
+     one set of rules serves both without a duplicate light/dark copy of
+     each control. */
+  /* No palette of its own any more — see :root. */
+  #landing{
+    position:fixed;inset:0;z-index:50;background:var(--ink);
+    display:flex;align-items:center;justify-content:center;
+    opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .38s ease,visibility .38s}
+  #landing.open{opacity:1;visibility:visible;pointer-events:auto}
+  /* A slight vignette: the ground darkens towards the corners so the lattice
+     falls away at the edges and the middle — where the mark and the light are —
+     reads as the lit part of the screen. Deliberately weak and deliberately
+     centred on the viewport, not on the grid: it has no edge to land on a
+     line, it is a fall-off. Over the field and the mark both, so nothing on
+     the screen sits outside the same light. */
+  #landing::after{content:'';position:absolute;inset:0;z-index:2;
+    pointer-events:none;
+    background:radial-gradient(ellipse 100% 100% at 50% 50%,
+      rgba(0,0,0,0) 58%,rgba(0,0,0,.28) 100%)}
+  #landingBody{width:min(380px,88vw)}
+  .landing-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.24em;
+    text-transform:uppercase;color:var(--dim);margin:0 0 20px}
+  #landingBody h1{font-family:var(--display);font-weight:800;font-size:34px;
+    color:var(--fg);margin:0 0 10px;letter-spacing:-.01em}
+  .landing-hint{font-family:var(--ui);font-size:13px;line-height:1.5;
+    color:var(--dim);margin:0 0 30px;max-width:34ch}
+  #landingBody .fields{margin-bottom:28px}
+  #landingBody .btn{width:100%;text-align:center}
+
+  /* ---- APERTURE — the opening screen -------------------------------------
+     The one step that is not a 380px column. The hero is not a card sitting ON
+     the grid; it is a hole cut OUT of it. #heroField paints a lattice of small
+     squares across the whole viewport — one per cell, no ruled lines — and
+     simply declines to paint the cells the aperture covers, so the type below
+     sits on bare ink with no panel, no border, no shadow. The absence of the
+     field IS the container, which is why nothing here draws a box.
+
+     Note which grid this is. The poster's grid (the sheet, the dot field) must
+     not be visible behind the opening screen; that spec is untouched. What
+     shows is the INTERFACE grid, the same --cell lattice .gridlayer paints
+     behind the board, so the frame you will be read against is already there
+     before you are.
+
+     Every measurement is in whole --cell units, so the aperture's four edges
+     land on gridlines exactly the way the sheet snaps to them later. */
+  /* The field is not part of the step's markup. It is a sibling of #landingBody
+     that outlives every innerHTML wipe, and the aperture simply re-measures
+     itself around whatever the screen is showing. */
+  #heroField{position:absolute;inset:0;display:block;width:100%;height:100%;
+    z-index:0;pointer-events:none}
+
+  /* ---- THE GRID FORMS — the film that turns this screen into the board -----
+     #gridRun stands exactly where #heroField stood, on the same lattice and at
+     the same square size, and runs the interface's own lines across it (see
+     js/app/57-transition.js). It is a second canvas rather than a mode of the
+     first because what it paints has nothing to do with the light: the field
+     answers the hand, and this answers nobody — it is over as soon as it has
+     built the grid.
+
+     Under it, not over it. The mark's cells are opaque and sit above both
+     canvases, so a line reaching a letter is hidden until the letter goes —
+     which is the read: the line arrives, the cell is gone, the line is there
+     underneath. .cut is how a DOM cell dies, and it is visibility and not
+     opacity for the reason everything on this screen is: it CUTS. */
+  #gridRun{position:absolute;inset:0;display:block;width:100%;height:100%;
+    z-index:0;pointer-events:none}
+  .klogo .kt.cut,.kstart.cut{visibility:hidden}
+
+  /* And the screen itself cuts. The film's last frame is pixel for pixel what
+     .gridlayer paints behind it, so fading out over it would be the grid
+     dissolving against itself while the poster is trying to arrive through the
+     veil. Set by arriveBoard, cleared by showIntro so Reset fades as usual. */
+  #landing.nofade{transition:none}
+  #landingBody{position:relative;z-index:1}
+  #landing.hero{align-items:stretch}
+  #landing.hero #landingBody{width:100%}
+
+  /* The plate is measured, not positioned by the aperture: JS reads this box
+     and grows the hole around it. Doing it the other way (fixed hole, content
+     poured in) overflows the moment a name runs long or a font falls back. */
+  .hero-plate{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:min(30rem,76vw);z-index:1}
+
+  /* Frank Ruhl Libre at display scale, one step under the craft ceiling. The
+     title is the heading — there is deliberately no kicker above it; the older
+     landing steps keep theirs, this one does not need a label to say what it
+     is. */
+  .hero-title{font-family:var(--display);font-weight:800;
+    font-size:clamp(2.25rem,6.4vw,5.25rem);line-height:.94;letter-spacing:-.03em;
+    color:var(--fg);margin:0 0 calc(var(--cell)*1.6);text-wrap:balance}
+  /* Characters arrive on the beat, hard cut. visibility (not opacity) keeps
+     the transition binary — a fade here would turn the staccato into shimmer,
+     which is the one thing this direction refuses. Layout is reserved from the
+     first frame, so nothing reflows as letters land. */
+  .hero-title i{font-style:normal;visibility:hidden}
+  .hero-title i.lit{visibility:visible}
+
+  .hero-lede{font-family:var(--ui);font-size:.8125rem;line-height:1.55;
+    color:var(--dim);margin:0 0 calc(var(--cell)*1.6);max-width:34ch;
+    text-wrap:balance}
+
+  .hero-foot{display:flex;align-items:center;gap:var(--cell)}
+  /* the id selector on #landingBody .btn stretches every landing button to the
+     full column width, which is right for a 380px step and wrong here: at
+     aperture width it becomes the loudest object on the screen. Sized to its
+     own label instead. */
+  #landing.hero .hero-foot .btn{width:auto;flex:0 0 auto;
+    min-width:calc(var(--cell)*7);text-align:center}
+
+  /* browser surfaces the design still owns */
+  .hero ::selection{background:var(--done);color:var(--ink)}
+
+  /* On a narrow screen the plate must give ground, or the aperture grows wider
+     than the viewport and the field survives only above and below — at which
+     point the hole is not a hole, it is a black band. Narrowing the plate keeps
+     grid on all four sides, which is the whole idea. */
+  @media (max-width:600px){
+    .hero-plate{width:calc(100vw - var(--cell)*8)}
+    .hero-title{font-size:clamp(2rem,10.5vw,3rem)}
+  }
+
+  /* Under reduced motion the field holds one still frame and every character is
+     present from the start. The composition is identical; only the beat stops. */
+  @media (prefers-reduced-motion:reduce){
+    .hero-title i{visibility:visible}
+  }
+
+  /* ---- the opening mark: KAIRO in grid tiles + a START cell ---------------
+     Replaces the typed title. The name is built from the same cells the
+     question controls are: white tiles with a charcoal letter, laid out as a
+     checkerboard so the cluster reads as one mark cut from the lattice. START
+     is the one dark cell — the first cell the visitor fills, before the board
+     and its questions. Both the tiles and START answer the pointer the same way:
+     four small marks light on the grid junctions at the cell's corners, so the
+     thing under the cursor is plainly a target. */
+  /* The plate fills the viewport; the logo box and START are positioned inside
+     it in absolute pixels snapped to the grid (see renderLandingHero), so the
+     cells' corners land on the same junctions the dot field paints. */
+  .hero-kairo{position:absolute;inset:0;left:0;top:0;transform:none;width:auto;display:block}
+  .klogo{position:absolute}
+  .klogo .kt{position:absolute;display:flex;align-items:center;justify-content:center;
+    background:#FFFFFF;color:var(--fg);font-family:var(--display);font-weight:600;
+    line-height:1;cursor:default}
+  /* the four corner marks — one square on each grid junction the cell touches,
+     sized to the lattice. Hidden until the cell is hovered; the hovered cell
+     rises above its neighbours (.kt:hover z-index) so all four always show in
+     full the way they do on an isolated letter like O. */
+  /* the four squares that bound each letter's cell — the same size as the
+     aperture's hour marks. They are ON from the start in grey, so the lattice
+     already frames every letter; hovering a cell turns its four dark as the
+     star's rays sweep in and settle onto them. */
+  .kmark{position:absolute;width:calc(var(--cell)*.17);height:calc(var(--cell)*.17);
+    background:#C2C2BE;transition:background .14s var(--ease);pointer-events:none}
+  .kmark.tl{left:calc(var(--cell)*-.085);top:calc(var(--cell)*-.085)}
+  .kmark.tr{right:calc(var(--cell)*-.085);top:calc(var(--cell)*-.085)}
+  .kmark.bl{left:calc(var(--cell)*-.085);bottom:calc(var(--cell)*-.085)}
+  .kmark.br{right:calc(var(--cell)*-.085);bottom:calc(var(--cell)*-.085)}
+  /* .hot is :hover in class form. The opening tour (heroTour) walks the mark on
+     load and must light each cell EXACTLY as the pointer does, so it sets this
+     rather than carrying a second set of styles that could drift from these
+     ones. Every rule below names both. */
+  .klogo .kt:hover,.klogo .kt.hot{z-index:5}
+  .klogo .kt:hover .kmark,.klogo .kt.hot .kmark,
+  .kstart:hover .kmark,.kstart.hot .kmark{background:var(--fg)}
+  /* START — the one dark cell, filling the empty checkerboard slot between A and
+     R (3 cells wide, 1 tall; positioned by JS). The first cell the visitor
+     fills, before the board and its questions. */
+  /* NO SHADOW. It used to lift on hover — a 20px drop under the cell — and a
+     cast shadow is the one thing this screen cannot have: nothing here is
+     floating above anything, the letters and Start are cells that the lattice
+     has been filled in at. A shadow made Start a card sitting ON the grid
+     instead of a square OF it, which is the whole composition. Hover is stated
+     by the four corner marks going dark (see .kstart:hover .kmark), the same
+     way it is on every letter cell beside it. */
+  .kstart{position:absolute;z-index:2;border:0;background:var(--fg);color:#FFFFFF;
+    font-family:var(--display);font-weight:500;letter-spacing:.12em;text-transform:uppercase;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+  .kstart:hover,.kstart.hot{z-index:6}
+  .kstart:focus-visible{outline:none}
+  @media (prefers-reduced-motion:reduce){.kmark{transition:none}}
+
+  /* ---- the base questions' controls, rescoped -----------------------------
+     The base questions moved into the board's own question system (bank Q1 and
+     Q2), so the landing carries only the opening screen now — the white panel,
+     its markers and its NEXT block all went with them. Their two controls live
+     on, rescoped under .qpanel below. */
+
+  /* SHAPE (bank Q1): two circle options, carried over from the landing screens
+     with their Figma glyphs (node 2879:6431). The mark sits apart from the
+     ring or rides on it; the chosen option inks in, the other rests in grey.
+     Placed under the words by shapeDuoMarkup; everything inside is cells, so
+     it breathes with the panel.
+       box to box    94/45 = 2.089       circle->label 10/45 = .222
+       label 14/45 = .311 (12 + Karin's 2pt)   leading 1.33 -> .414
+     The box-to-box gap is NO LONGER the Figma 2.089 (Karin, 16 Aug: "make the
+     circles closer to each other"). That measure came off the LANDING screen,
+     where the pair had a full-width panel to sit in; in the 9-cell question
+     panel it left the two rings reading as two separate controls rather than
+     one either/or. Note the gap is measured box to box and the "apart" mark
+     spills ~0.5 cell to the right of its own box, so the visible air between
+     the options is about half a cell less than the number below.             */
+  .qpanel .qduo{display:flex;justify-content:center;align-items:flex-start;
+    gap:calc(var(--cell)*1.2)}
+  /* No width here: each option is exactly the circle's own box wide, and the
+     circle takes the FEBDAYS row's diameter, set inline by shapeDuoMarkup —
+     Q1's rings and Q4's circles are one size of the same mark, by decision. */
+  .qpanel .qduo button{background:transparent;border:0;cursor:pointer;display:flex;
+    flex-direction:column;align-items:center;padding:0;gap:calc(var(--cell)*.222)}
+  /* overflow:visible — the apart mark lives OUTSIDE the ring's box, to its
+     right, and the ring's box is what the label lines up with. position stated
+     to beat the .qpanel svg rule that stretches panel SVGs full-bleed; the
+     size comes inline from shapeDuoMarkup. */
+  .qpanel .qduo svg{position:static;display:block;overflow:visible}
+  /* the mark sits still: apart from the ring, or on it. (The slow orbit was
+     tried and dropped — it read as confusing.) */
+  .qpanel .qduo .ring{fill:none;stroke:#C2C2BE;transition:stroke .16s}
+  .qpanel .qduo .dot{fill:#C2C2BE;transition:fill .16s}
+  .qpanel .qduo b{font-family:var(--q-face);font-weight:400;
+    font-size:calc(var(--cell)*.311);line-height:calc(var(--cell)*.414);
+    text-align:center;color:var(--dim);transition:color .16s}
+  .qpanel .qduo button[aria-pressed=true] .ring{stroke:var(--q-text)}
+  .qpanel .qduo button[aria-pressed=true] .dot{fill:var(--q-text)}
+  .qpanel .qduo button[aria-pressed=true] b{color:var(--q-text)}
+
+  /* DENSITY (bank Q2): three circles filling up — a sliver, about half,
+     brimming. The landing control's px measures converted to cells at the same
+     45px drawing: circle 70/45 = 1.556, gap 26/45 = .578, circle->label
+     16/45 = .356, label 13/45 = .289.
+     No gap here: DENSITY_GAP owns it, because densityFillMarkup now SOLVES for
+     the diameter from it (see there) and the number cannot live in two places
+     and be trusted. It arrives inline on the row. */
+  .qpanel .qfill{display:flex;justify-content:center;align-items:flex-end}
+  .qpanel .qfill button{background:transparent;border:0;cursor:pointer;display:flex;
+    flex-direction:column;align-items:center;padding:0;gap:calc(var(--cell)*.356)}
+  /* no width/height here: densityFillMarkup sets the diameter inline, solved
+     from the hugged panel width and DENSITY_GAP so this three-up row ends
+     flush with the question's own left and right edges */
+  .qpanel .qfill .circ{position:relative;box-sizing:border-box;border-radius:50%;
+    border:2px solid #C2C2BE;overflow:hidden;transition:border-color .16s}
+  .qpanel .qfill .circ i{position:absolute;left:0;right:0;bottom:0;height:0;background:#C2C2BE;
+    transition:background .16s,height 1.1s cubic-bezier(.34,1.2,.5,1)}
+  .qpanel .qfill b{font-family:var(--q-face);font-weight:500;
+    font-size:calc(var(--cell)*.289);color:var(--dim);transition:color .16s}
+  .qpanel .qfill button[aria-pressed=true] .circ{border-color:var(--q-text)}
+  .qpanel .qfill button[aria-pressed=true] .circ i{background:var(--q-text)}
+  .qpanel .qfill button[aria-pressed=true] b{color:var(--q-text)}
+
+  /* questions arrive as a card floating on the surface, clear of the sheet */
+  .popup{
+    --fg:#111111; --dim:rgba(0,0,0,.52); --line:rgba(0,0,0,.16);
+    --surface:#FFFFFF; --accent:#111111; --picker:none;
+    position:absolute;z-index:5;
+    left:0;top:0;                      /* replaced by JS once a dot is chosen */
+    width:min(400px, 88vw);max-height:84dvh;
+    background:var(--surface);color:var(--fg);
+    padding:24px 24px 22px;overflow-y:auto;
+    box-shadow:0 24px 60px -18px rgba(0,0,0,.9);
+    transform-origin:top left;
+    opacity:0;visibility:hidden;pointer-events:none;
+  }
+  /* grows out of the dot it is pinned to. left/top are transitioned so that if
+     a format change puts the new sheet under an open card, the card slides out
+     of the way on the same curve as the sheet instead of jumping when the morph
+     lands. The pop keyframes touch only transform and opacity, so they do not
+     fight this. */
+  .popup.open{opacity:1;visibility:visible;pointer-events:auto;
+              animation:pop .34s cubic-bezier(.2,.85,.25,1) both}
+  .world.morphing .popup.open{
+              transition:left var(--morph) var(--ease), top var(--morph) var(--ease)}
+  /* the card grows out of the dot it is pinned to */
+  @keyframes pop{from{opacity:0;transform:scale(.38)}to{opacity:1;transform:scale(1)}}
+
+  .eyebrow{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--dim);
+           text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;
+           border-bottom:1px solid var(--line);padding-bottom:9px;gap:12px}
+  .eyebrow-right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+  .reset{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;
+         background:transparent;border:0;padding:0 0 1px;cursor:pointer;color:var(--dim);
+         border-bottom:1px solid var(--line);transition:color .15s,border-color .15s}
+  .reset:hover{color:var(--fg);border-bottom-color:var(--fg)}
+  .reset:focus-visible{outline:1px solid var(--fg);outline-offset:3px}
+  .reset:disabled{opacity:.35;cursor:default;border-bottom-color:transparent}
+  .reset:disabled:hover{color:var(--dim)}
+
+  .prog i{flex:1;height:1px;background:var(--line);transition:background .25s,height .25s}
+  .prog i.on{background:var(--fg);height:2px}
+  .prog i.cur{background:var(--accent);height:2px}
+  .prog s{width:12px;flex:none;height:1px;background:transparent}
+
+  #stepHost{display:block}
+  .q{margin:0}
+  @keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .q h2{font-family:var(--display);font-weight:800;font-size:25px;line-height:1.14;
+        margin:16px 0 8px;letter-spacing:-.01em}
+  .q .hint{color:var(--dim);font-size:13px;line-height:1.45;margin:0 0 20px}
+
+  .shapes{display:flex;gap:8px}
+  .shapes button{flex:1;aspect-ratio:1;border:1px solid var(--line);background:transparent;
+                 cursor:pointer;display:flex;flex-direction:column;align-items:center;
+                 justify-content:center;gap:9px;transition:.18s;padding:8px}
+  .shapes button:hover{border-color:var(--fg)}
+  .shapes button svg{width:34px;height:34px}
+  .shapes button svg *{fill:var(--fg);transition:fill .18s}
+  .shapes button b{font-family:var(--mono);font-weight:400;font-size:8.5px;letter-spacing:.14em;
+                   text-transform:uppercase;color:var(--dim);transition:color .18s}
+  .shapes button[aria-pressed=true]{background:var(--fg);border-color:var(--fg)}
+  .shapes button[aria-pressed=true] svg *{fill:var(--surface)}
+  .shapes button[aria-pressed=true] b{color:var(--surface)}
+
+  .duo{display:flex;gap:8px}
+  .duo button{flex:1;padding:16px 14px;border:1px solid var(--line);background:transparent;
+              cursor:pointer;text-align:left;transition:.18s;color:var(--fg)}
+  .duo button:hover{border-color:var(--fg)}
+  .duo button strong{display:block;font-family:var(--display);font-weight:800;font-size:19px;margin-bottom:3px}
+  .duo button span{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;line-height:1.4;
+                   text-transform:uppercase;color:var(--dim);transition:color .18s;display:block}
+  .duo button[aria-pressed=true]{background:var(--fg);border-color:var(--fg);color:var(--surface)}
+  .duo button[aria-pressed=true] span{color:var(--surface);opacity:.7}
+
+  /* Twelve months, three to a row where there is room, so four rows read as a
+     year at a glance. auto-fit rather than a fixed 3, because the card narrows
+     to stay anchored to its dot and off the poster (see placeCard) — at the
+     tightest widths this drops to two columns instead of crushing SEPTEMBER. */
+  .choice{display:grid;grid-template-columns:repeat(auto-fit,minmax(74px,1fr));gap:6px}
+  .choice button{padding:11px 4px;border:1px solid var(--line);background:transparent;
+                 cursor:pointer;transition:.18s;color:var(--fg);
+                 font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
+                 text-transform:uppercase;white-space:nowrap}
+  .choice button:hover{border-color:var(--fg)}
+  .choice button[aria-pressed=true]{background:var(--fg);border-color:var(--fg);color:var(--surface)}
+
+  /* a bar with exactly three marked points — not a free slider, not a duo */
+  .tri{display:flex;justify-content:space-between;position:relative;padding:24px 8px 6px}
+  .tri::before{content:'';position:absolute;left:16px;right:16px;top:32px;height:1px;background:var(--line)}
+  .tri button{position:relative;z-index:1;background:transparent;border:0;padding:4px;cursor:pointer;
+              display:flex;flex-direction:column;align-items:center;gap:11px;flex:1}
+  .tri button i{display:block;width:10px;height:10px;border-radius:50%;background:var(--surface);
+                border:1.3px solid var(--fg);transition:transform .15s,background .15s}
+  .tri button[aria-pressed=true] i{background:var(--fg);transform:scale(1.35)}
+  .tri button b{font-family:var(--mono);font-weight:400;font-size:9.5px;letter-spacing:.1em;
+               text-transform:uppercase;color:var(--dim);transition:color .15s}
+  .tri button[aria-pressed=true] b{color:var(--fg)}
+  .tri button:focus-visible i{outline:1px solid var(--fg);outline-offset:3px}
+
+  .num{display:flex;align-items:baseline;gap:12px;margin-bottom:14px}
+  .num input{width:104px;background:transparent;border:0;border-bottom:1px solid var(--fg);
+             font-family:var(--display);font-weight:800;font-size:50px;color:var(--fg);
+             padding:0;outline:none;text-align:center;-moz-appearance:textfield}
+  .num input::-webkit-outer-spin-button,.num input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .num em{font-style:normal;font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+          text-transform:uppercase;color:var(--dim)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;background:transparent;margin:4px 0;cursor:grab}
+  input[type=range]:active{cursor:grabbing}
+  input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--line)}
+  input[type=range]::-moz-range-track{height:1px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;
+    background:var(--fg);border:0;margin-top:-7px;transition:transform .12s}
+  input[type=range]:active::-webkit-slider-thumb{transform:scale(1.25)}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:0;background:var(--fg);border:0}
+  input[type=range]:focus-visible::-webkit-slider-thumb{outline:1px solid var(--fg);outline-offset:3px}
+  .scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;
+         color:var(--dim);letter-spacing:.1em}
+
+  /* part one — kept in the code, parked until we decide where it goes */
+  .fields{display:flex;flex-direction:column;gap:18px}
+  .fld label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+             text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+  .fld label span{text-transform:none;letter-spacing:.04em;opacity:.7}
+  .fld input{width:100%;background:transparent;border:0;border-bottom:1px solid var(--fg);
+             font-family:var(--display);font-weight:500;font-size:21px;color:var(--fg);
+             padding:3px 0;outline:none;-moz-appearance:textfield}
+  .fld input::-webkit-outer-spin-button,.fld input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .fld input::placeholder{color:var(--dim);opacity:.45}
+  .fld input:focus{border-bottom-width:2px}
+  .fld input:disabled{color:var(--dim);border-bottom-style:dotted}
+  .fld input[type=date]::-webkit-calendar-picker-indicator{filter:var(--picker);opacity:.55;cursor:pointer}
+  .fld .sub{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:6px;
+            letter-spacing:.04em;min-height:13px}
+  .duo-fld{display:flex;gap:14px}
+  .duo-fld .fld{flex:1}
+

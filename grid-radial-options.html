@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Poster grid — circles vs spokes</title>
+<style>
+  :root{ --paper:#FAF8F8; --ink:#004CFF; --bg:#ECECEC; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+       color:#222;padding:34px 26px 60px}
+  h1{font-size:17px;font-weight:600;margin:0 0 4px}
+  p.sub{font-size:12.5px;color:#777;margin:0 0 26px}
+  .row{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+  .card{width:280px}
+  .frame{width:280px;height:calc(280px*10/7);background:var(--paper);
+         box-shadow:0 14px 34px rgba(0,0,0,.10);border-radius:2px;overflow:hidden}
+  .cap{margin-top:10px}
+  .cap .t{font-size:14px;font-weight:600;margin:1px 0 2px}
+  .cap .d{font-size:12px;color:#777;line-height:1.4}
+  svg{display:block;width:100%;height:100%}
+  .grid line,.grid circle{fill:none;stroke:var(--ink);stroke-width:1;
+       vector-effect:non-scaling-stroke;opacity:.9}
+</style>
+</head>
+<body>
+  <h1>עיגולים בלבד · קרניים בלבד</h1>
+  <p class="sub">מרכז אחד באמצע הגיליון (7:10), כחול הפוסטר #004CFF על #FAF8F8. אמרי לי מה לשים ובאיזו צפיפות קרניים.</p>
+  <div class="row" id="row"></div>
+
+<script>
+const W=700,H=1000, CX=W/2, CY=H/2;
+const svgWrap=inner=>'<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
+  +'<g class="grid">'+inner+'</g></svg>';
+const line=(x1,y1,x2,y2)=>'<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'"/>';
+const circle=(cx,cy,r)=>'<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+r.toFixed(1)+'"/>';
+const maxR=Math.hypot(CX,CY)+10;
+
+function circles(step){ let s=''; for(let r=step;r<=maxR;r+=step) s+=circle(CX,CY,r); return s; }
+function spokes(nDeg){ let s=''; for(let a=0;a<360;a+=nDeg){ const th=a*Math.PI/180;
+  s+=line(CX,CY,CX+Math.cos(th)*maxR,CY+Math.sin(th)*maxR); } return s; }
+
+const OPTIONS=[
+  ['Circles only','עיגולים קונצנטריים, מרווח 58 — בלי קרניים.',circles(58)],
+  ['Spokes · 12','קרן כל 30° (12 קרניים) — דליל.',spokes(30)],
+  ['Spokes · 24','קרן כל 15° (24 קרניים) — צפוף.',spokes(15)],
+  ['Circles + Spokes·24','שילוב, למקרה שתרצי את שניהם יחד.',circles(58)+spokes(15)]
+];
+
+document.getElementById('row').innerHTML=OPTIONS.map(o=>
+  '<div class="card"><div class="frame">'+svgWrap(o[2])+'</div>'
+  +'<div class="cap"><div class="t">'+o[0]+'</div><div class="d">'+o[1]+'</div></div></div>').join('');
+</script>
+</body>
+</html>

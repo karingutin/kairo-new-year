@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Poster grid — 5 non-square options</title>
+<style>
+  :root{ --paper:#FAF8F8; --ink:#004CFF; --bg:#ECECEC; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+       color:#222;padding:34px 26px 60px}
+  h1{font-size:17px;font-weight:600;margin:0 0 4px}
+  p.sub{font-size:12.5px;color:#777;margin:0 0 26px}
+  .row{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+  .card{width:270px}
+  .frame{width:270px;height:calc(270px*10/7);background:var(--paper);
+         box-shadow:0 14px 34px rgba(0,0,0,.10);border-radius:2px;overflow:hidden}
+  .cap{margin-top:10px}
+  .cap .n{font-size:12px;color:#aaa;font-variant-numeric:tabular-nums}
+  .cap .t{font-size:14px;font-weight:600;margin:1px 0 2px}
+  .cap .d{font-size:12px;color:#777;line-height:1.4}
+  svg{display:block;width:100%;height:100%}
+  .grid line,.grid path,.grid circle,.grid polygon{fill:none;stroke:var(--ink);
+       stroke-width:1;vector-effect:non-scaling-stroke;opacity:.9}
+</style>
+</head>
+<body>
+  <h1>5 גרידים לא־ריבועיים לתחתית הפוסטר</h1>
+  <p class="sub">כל אחד על יחס הגיליון 7:10, בכחול הפוסטר (#004CFF) על נייר #FAF8F8. אמרי לי מספר.</p>
+  <div class="row" id="row"></div>
+
+<script>
+const W=700,H=1000;
+const svgWrap=inner=>'<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">'
+  +'<g class="grid">'+inner+'</g></svg>';
+
+// ---- helpers -------------------------------------------------------------
+const line=(x1,y1,x2,y2)=>'<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'"/>';
+const circle=(cx,cy,r)=>'<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+r.toFixed(1)+'"/>';
+// draw parallel lines at angle deg, spacing d, covering the sheet
+function parallels(deg,d){
+  const th=deg*Math.PI/180, dir=[Math.cos(th),Math.sin(th)], nrm=[-Math.sin(th),Math.cos(th)];
+  const corners=[[0,0],[W,0],[0,H],[W,H]];
+  let mn=1e9,mx=-1e9;
+  corners.forEach(p=>{const t=p[0]*nrm[0]+p[1]*nrm[1]; if(t<mn)mn=t; if(t>mx)mx=t;});
+  let s='';
+  for(let o=Math.ceil(mn/d)*d;o<=mx;o+=d){
+    // a point on this line: o*nrm, extend far along dir both ways
+    const px=o*nrm[0], py=o*nrm[1], L=2000;
+    s+=line(px-dir[0]*L,py-dir[1]*L,px+dir[0]*L,py+dir[1]*L);
+  }
+  return s;
+}
+
+// ---- 1. POLAR : concentric circles + radial spokes, centred --------------
+function polar(){
+  const cx=W/2, cy=H/2, maxR=Math.hypot(cx,cy)+10, step=58;
+  let s='';
+  for(let r=step;r<=maxR;r+=step) s+=circle(cx,cy,r);
+  for(let a=0;a<360;a+=15){ const th=a*Math.PI/180;
+    s+=line(cx,cy,cx+Math.cos(th)*maxR,cy+Math.sin(th)*maxR); }
+  return s;
+}
+
+// ---- 2. CONTOUR : concentric arcs rippling from the bottom-centre ---------
+function contour(){
+  const cx=W/2, cy=H+40, maxR=Math.hypot(W/2,H)+80, step=70;
+  let s='';
+  for(let r=step;r<=maxR;r+=step) s+=circle(cx,cy,r);
+  return s;   // clipped by the frame -> reads as nested arcs / ripples
+}
+
+// ---- 3. ISOMETRIC : triangular lattice (30° / 90° / 150°) ----------------
+function iso(){ const d=52; return parallels(30,d)+parallels(150,d)+parallels(90,d); }
+
+// ---- 4. HEXAGONAL : honeycomb -------------------------------------------
+function hexgrid(){
+  const s=42;                       // circumradius (flat-top)
+  const hw=s*1.5, hh=Math.sqrt(3)*s;
+  let out='';
+  const hex=(cx,cy)=>{ let p='';
+    for(let i=0;i<6;i++){ const a=Math.PI/180*(60*i);
+      p+=(cx+s*Math.cos(a)).toFixed(1)+','+(cy+s*Math.sin(a)).toFixed(1)+' '; }
+    return '<polygon points="'+p.trim()+'"/>'; };
+  let col=0;
+  for(let cx=-s;cx<W+s;cx+=hw){
+    const yoff=(col%2)?hh/2:0;
+    for(let cy=-s+yoff;cy<H+s;cy+=hh) out+=hex(cx,cy);
+    col++;
+  }
+  return out;
+}
+
+// ---- 5. SUNBURST : radial spokes fanning from the bottom-centre ----------
+function sunburst(){
+  const cx=W/2, cy=H+30, R=Math.hypot(W/2,H)+80;
+  let s='';
+  for(let a=-90;a<=90;a+=7.5){ const th=(a-90)*Math.PI/180;  // fan upward
+    s+=line(cx,cy,cx+Math.cos(th)*R,cy+Math.sin(th)*R); }
+  // a few faint horizon arcs to seat the fan
+  for(let r=180;r<=R;r+=170) s+=circle(cx,cy,r);
+  return s;
+}
+
+const OPTIONS=[
+  ['Polar','עיגולים קונצנטריים + קרני רדיוס ממרכז הגיליון.',polar],
+  ['Contour ripples','קשתות מקוננות שמתפשטות מתחתית הגיליון — כמו אדוות.',contour],
+  ['Isometric','סריג משולשים (איזומטרי) — קווים אלכסוניים ב־30°/90°/150°.',iso],
+  ['Hexagonal','חלת דבש — תאים משושים.',hexgrid],
+  ['Sunburst','מניפת קרניים מתחתית הגיליון + כמה קשתות אופק.',sunburst]
+];
+
+document.getElementById('row').innerHTML=OPTIONS.map((o,i)=>
+  '<div class="card"><div class="frame">'+svgWrap(o[2]())+'</div>'
+  +'<div class="cap"><div class="n">0'+(i+1)+'</div><div class="t">'+o[0]
+  +'</div><div class="d">'+o[1]+'</div></div></div>').join('');
+</script>
+</body>
+</html>

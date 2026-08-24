@@ -1,0 +1,95 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "aot-verify",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8796"
+      ],
+      "port": 8796
+    },
+    {
+      "name": "aot-flow-test",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8797"
+      ],
+      "port": 8797
+    },
+    {
+      "name": "aot-anim",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8799"
+      ],
+      "port": 8799
+    },
+    {
+      "name": "aot-transition",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8802"
+      ],
+      "port": 8802
+    },
+    {
+      "name": "aot-tour",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8814"
+      ],
+      "port": 8814
+    },
+    {
+      "name": "aot-home",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8817"
+      ],
+      "port": 8817
+    },
+    {
+      "name": "aot-grid-run",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8823"
+      ],
+      "port": 8823
+    },
+    {
+      "name": "aot-record",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8829"
+      ],
+      "port": 8829
+    },
+    {
+      "name": "aot-finish",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8811"
+      ],
+      "port": 8811
+    }
+  ]
+}

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KAIRO — grid transition demo</title>
+<style>
+  /* Palette lifted from architecture-of-time.html so the demo reads as the
+     real screens: same ink, same square tone, same gridline, same sheetline. */
+  :root{
+    --ink:#ECECEC;
+    --fg:#141414;
+    --line:rgba(0,0,0,.16);
+    --gridline:#D7D4CC;
+    --sheetline:rgba(0,0,0,.34);
+    --cell:20px;
+    --mono:'SF Mono',ui-monospace,Menlo,monospace;
+    --ui:-apple-system,'Helvetica Neue',Arial,sans-serif;
+  }
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--ink)}
+  canvas{position:fixed;inset:0;display:block;width:100vw;height:100vh}
+
+  /* demo controls — not part of the piece, kept quiet at the bottom edge */
+  #ui{position:fixed;left:20px;bottom:20px;display:flex;gap:8px;z-index:10;
+      font-family:var(--mono);font-size:11px}
+  #ui button{font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+      padding:8px 14px;border:1px solid var(--sheetline);background:var(--ink);
+      color:var(--fg);cursor:pointer}
+  #ui button.on{background:var(--fg);color:#fff;border-color:var(--fg)}
+  #ui button:hover{border-color:var(--fg)}
+  #cap{position:fixed;right:20px;bottom:24px;font-family:var(--mono);
+      font-size:10px;letter-spacing:.2em;color:rgba(0,0,0,.4);z-index:10;
+      text-transform:uppercase}
+
+  /* question 1's card — the real board's .popup, closely enough to judge the
+     timing: it does not wait for a separate beat after the poster settles,
+     it pops in (scale+opacity, like the real .popup's "pop" keyframe) while
+     the canvas is still being coloured in. left/top/opacity/transform are
+     all written by JS each frame; this block only carries the static look. */
+  #qcard{position:fixed;z-index:6;width:380px;box-sizing:border-box;
+    background:#fff;color:#111;padding:24px 24px 22px;
+    box-shadow:0 24px 60px -18px rgba(0,0,0,.9);
+    font-family:var(--ui);transform-origin:top left;
+    opacity:0;pointer-events:none}
+  #qcard .eyebrow{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;
+    color:rgba(0,0,0,.52);text-transform:uppercase;display:flex;
+    justify-content:space-between;border-bottom:1px solid rgba(0,0,0,.16);
+    padding-bottom:9px;margin-bottom:16px}
+  #qcard h2{font-family:var(--display,var(--ui));font-size:19px;font-weight:700;
+    margin:0 0 8px;letter-spacing:-.01em}
+  #qcard p{font-size:12.5px;line-height:1.5;color:rgba(0,0,0,.52);margin:0 0 18px}
+  #qcard .qopt{display:flex;align-items:center;gap:10px;font-size:12px;
+    padding:8px 0;border-top:1px solid rgba(0,0,0,.1)}
+  #qcard .qopt:first-of-type{border-top:0}
+  #qcard .qdot{width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(0,0,0,.3);
+    flex:none}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="qcard">
+  <div class="eyebrow"><span>SENSE</span><span>01 / 10</span></div>
+  <h2>How do you experience time?</h2>
+  <p>Don't overthink it, go with your gut.</p>
+  <div class="qopt"><span class="qdot"></span>It unwinds without me</div>
+  <div class="qopt"><span class="qdot"></span>I keep along with it</div>
+</div>
+<div id="ui">
+  <button data-v="aperture">מהאפרטורה</button>
+  <button data-v="edges" class="on">משמאל ומלמעלה</button>
+  <button data-v="sweep">סריקה</button>
+  <button id="replay">↻ נגן שוב</button>
+</div>
+<div id="cap">grid transition demo</div>
+<script>
+'use strict';
+/* ============================================================================
+   THE TRANSITION, AS A FILM.
+   Landing: the lattice of small squares with the KAIRO aperture cut out.
+   Then the interface's ruled lines RUN across the screen and draw themselves;
+   every square goes out the instant a line passes through its junction —
+   the line collects it. When the grid is complete the sheet's four darker
+   lines run and frame the poster, and the board is simply there.
+   Squares die by cut, not fade — the piece's language.
+   ========================================================================== */
+const CELL=20;
+const INK=getCss('--ink'), SQ=getCss('--line'), GRID=getCss('--gridline'),
+      DARK=getCss('--sheetline'), FG=getCss('--fg');
+function getCss(k){return getComputedStyle(document.documentElement).getPropertyValue(k).trim();}
+
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d');
+const qcard=document.getElementById('qcard');
+
+let W=0,H=0,dpr=1;
+let sox=0,soy=0;                 /* junction phase: a junction through viewport centre */
+let X=[],Y=[];                   /* junction coordinates (also the line coordinates) */
+let squares=[];                  /* {ci,ri,x,y,alive} */
+let tiles=[];                    /* KAIRO letters + Start: {x,y,w,h,ch,start,alive} */
+let ap={x0:0,y0:0,x1:0,y1:0,cx:0,cy:0};
+let sheet={x:0,y:0,w:0,h:0};
+
+/* ?t=300 freezes the film at that ms of the grid run; ?s=300 skips straight
+   to the poster's arrival, frozen at that ms of ITS trace (storyboard/tuning
+   — both stay put regardless of real elapsed time, unlike hand-setting t0);
+   ?v=sweep|edges|aperture picks the variant */
+const QS=new URLSearchParams(location.search);
+const FREEZE=QS.get('t')!=null?+QS.get('t'):null;
+const SHEET_FREEZE=QS.get('s')!=null?+QS.get('s'):null;
+let variant=QS.get('v')||'edges';
+let phase='rest';                /* rest → run → sheet → done */
+let t0=0, ts0=0;
+const SPEED=1.05;                /* px per ms a line head travels */
+const HEAD=2.2*CELL;             /* length of the darker running tip */
+
+/* ---- edges variant: horizontals first, then verticals, each staggered and
+   eased out. The stagger between one line and the next is a small FIXED
+   beat — not a budget divided across however many lines exist — so lines
+   overlap heavily (many are mid-motion at once) and the group never coasts
+   through a long static tail before the next phase starts. Each line's own
+   sweep is slow; the beat between lines is not. The grid finishes fully
+   before the poster is asked to arrive at all — see the 'sheet' phase below. */
+const DUR_LINE=950;                /* ms a single line takes to cross, eased — slow */
+const STAIR_H=8, STAIR_V=7;        /* ms between one line starting and the next — tight */
+let horizGroupTotal=0;             /* when the last horizontal finishes, computed in measure() */
+const easeOut=p=>1-Math.pow(1-p,3);
+function hProgress(t,i){ return easeOut(Math.max(0,Math.min(1,(t-i*STAIR_H)/DUR_LINE))); }
+function vProgress(t,i){ return easeOut(Math.max(0,Math.min(1,(t-horizGroupTotal-i*STAIR_V)/DUR_LINE))); }
+
+/* ---------- layout ---------- */
+function snap(v,phaseOff){ return phaseOff+Math.round((v-phaseOff)/CELL)*CELL; }
+
+function measure(){
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  W=innerWidth; H=innerHeight;
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  sox=(W/2)%CELL; soy=(H/2)%CELL;
+
+  X=[]; Y=[];
+  for(let x=sox-Math.ceil(sox/CELL)*CELL; x<=W+CELL; x+=CELL) X.push(x);
+  for(let y=soy-Math.ceil(soy/CELL)*CELL; y<=H+CELL; y+=CELL) Y.push(y);
+  /* when the horizontal pass's last line finishes — the moment the vertical
+     pass is allowed to begin */
+  horizGroupTotal=(Y.length-1)*STAIR_H+DUR_LINE;
+
+  /* KAIRO cluster: five 3x3-cell letter tiles on a checkerboard + Start */
+  const tile=3*CELL, boxW=5*tile, boxH=2*tile;
+  const left=snap((W-boxW)/2,sox), top=snap((H-boxH)/2,soy);
+  const POS=[[0,0,'K'],[1,1,'A'],[2,0,'I'],[3,1,'R'],[4,0,'O']];
+  tiles=POS.map(([c,r,ch])=>({x:left+c*tile,y:top+r*tile,w:tile,h:tile,ch,start:false,alive:true}));
+  tiles.push({x:left+2*tile,y:top+1*tile,w:tile,h:tile,ch:'Start',start:true,alive:true});
+
+  /* aperture: cluster + 2 whole cells of clearance, edges on gridlines */
+  const P=2*CELL;
+  ap={x0:left-P,y0:top-P,x1:left+boxW+P,y1:top+boxH+P};
+  ap.cx=(ap.x0+ap.x1)/2; ap.cy=(ap.y0+ap.y1)/2;
+
+  /* squares on every junction, except inside the aperture */
+  squares=[];
+  X.forEach((x,ci)=>Y.forEach((y,ri)=>{
+    if(x>ap.x0&&x<ap.x1&&y>ap.y0&&y<ap.y1) return;
+    squares.push({ci,ri,x,y,alive:true});
+  }));
+
+  /* the poster sheet: whole even cell counts, centred, edges on lines */
+  let shC=Math.min(30,Math.floor((H-8*CELL)/CELL/2)*2);
+  let swC=Math.min(22,Math.floor((W-8*CELL)/CELL/2)*2);
+  if(shC<10)shC=10; if(swC<8)swC=8;
+  sheet={w:swC*CELL,h:shC*CELL,x:W/2-swC*CELL/2,y:H/2-shC*CELL/2};
+
+  /* question 1's card: chrome, so per CLAUDE.md it sits on the grid too —
+     whole-cell width, position snapped to the same phase as everything
+     else, clear of the sheet by a 2-cell gap on its left. */
+  const qw=19*CELL;
+  qcard.style.width=qw+'px';
+  const qx=snap(sheet.x-2*CELL-qw,sox), qy=snap(sheet.y,soy);
+  qcard.style.left=qx+'px'; qcard.style.top=qy+'px';
+}
+
+/* ---------- line models ----------------------------------------------------
+   Each grid line, at time t, is a set of covered segments plus running heads.
+   Verticals: coord = x, span 0..H. Horizontals: coord = y, span 0..W.
+   Three variants differ only in origin and delay. ------------------------- */
+function lineState(coord,span,i,n,vertical,t){
+  let segs=[],heads=[];
+  const grow=(from,dir,delay,limit)=>{
+    const d=Math.max(0,t-delay)*SPEED;
+    if(d<=0)return;
+    const end=dir>0?Math.min(from+d,limit):Math.max(from-d,limit);
+    segs.push(dir>0?[from,end]:[end,from]);
+    if(dir>0?end<limit:end>limit) heads.push({p:end,dir});
+  };
+  if(variant==='sweep'){
+    grow(0,1,i*16+(vertical?0:120),span);
+  }else if(variant==='edges'){
+    /* horizontals first, staggered row by row and eased out; only once that
+       whole pass is done do the verticals begin, staggered column by column */
+    const p=vertical?vProgress(t,i):hProgress(t,i);
+    const dist=p*span;
+    if(dist>0){ segs.push([0,dist]); if(p<1) heads.push({p:dist,dir:1}); }
+  }else{ /* aperture */
+    const lo=vertical?ap.x0:ap.y0, hi=vertical?ap.x1:ap.y1;
+    const dist=coord<lo?lo-coord:(coord>hi?coord-hi:0);
+    const delay=dist*0.9;
+    const o=vertical?ap.cy:ap.cx;
+    grow(o,1,delay,span); grow(o,-1,delay,0);
+  }
+  return {segs,heads};
+}
+function allLines(t){
+  const v=X.map((x,i)=>({x,...lineState(x,H,i,X.length,true,t)}));
+  const h=Y.map((y,i)=>({y,...lineState(y,W,i,Y.length,false,t)}));
+  return {v,h};
+}
+function linesDone(L){
+  const full=(st,span)=>st.segs.length&&st.heads.length===0&&
+    Math.min(...st.segs.map(s=>s[0]))<=1&&Math.max(...st.segs.map(s=>s[1]))>=span-1;
+  return L.v.every(l=>full(l,H))&&L.h.every(l=>full(l,W));
+}
+
+/* a covered segment kills every junction it has passed */
+function collect(L){
+  for(const s of squares){
+    if(!s.alive)continue;
+    const lv=L.v[s.ci], lh=L.h[s.ri];
+    if(lv.segs.some(([a,b])=>s.y>=a-1&&s.y<=b+1)||
+       lh.segs.some(([a,b])=>s.x>=a-1&&s.x<=b+1)) s.alive=false;
+  }
+  for(const tl of tiles){
+    if(!tl.alive)continue;
+    const hitV=L.v.some(l=>l.x>tl.x-1&&l.x<tl.x+tl.w+1&&
+        l.segs.some(([a,b])=>b>tl.y&&a<tl.y+tl.h));
+    const hitH=L.h.some(l=>l.y>tl.y-1&&l.y<tl.y+tl.h+1&&
+        l.segs.some(([a,b])=>b>tl.x&&a<tl.x+tl.w));
+    if(hitV||hitH) tl.alive=false;
+  }
+}
+
+/* ---------- painting ---------- */
+function paintSquares(){
+  const m=Math.max(2,Math.round(CELL*.11));
+  ctx.fillStyle=SQ;
+  for(const s of squares) if(s.alive)
+    ctx.fillRect(Math.round(s.x-m/2),Math.round(s.y-m/2),m,m);
+}
+function paintTiles(){
+  for(const tl of tiles){
+    if(!tl.alive)continue;
+    if(tl.start){
+      ctx.fillStyle=FG; ctx.fillRect(tl.x,tl.y,tl.w,tl.h);
+      ctx.fillStyle='#fff';
+      ctx.font='500 '+Math.round(tl.w*.22)+'px '+getCss('--ui');
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('Start',tl.x+tl.w/2,tl.y+tl.h/2+1);
+    }else{
+      ctx.fillStyle=FG;
+      ctx.font='800 '+Math.round(tl.w*.5)+'px '+getCss('--ui');
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(tl.ch,tl.x+tl.w/2,tl.y+tl.h/2+2);
+    }
+    /* four corner marks, squares of the grid itself */
+    ctx.fillStyle=DARK;
+    const k=3;
+    [[tl.x,tl.y],[tl.x+tl.w,tl.y],[tl.x,tl.y+tl.h],[tl.x+tl.w,tl.y+tl.h]]
+      .forEach(([px,py])=>ctx.fillRect(Math.round(px-k/2),Math.round(py-k/2),k,k));
+  }
+}
+function paintLines(L){
+  ctx.fillStyle=GRID;
+  for(const l of L.v) for(const [a,b] of l.segs)
+    ctx.fillRect(Math.round(l.x),Math.round(a),1,Math.max(0,b-a));
+  for(const l of L.h) for(const [a,b] of l.segs)
+    ctx.fillRect(Math.round(a),Math.round(l.y),Math.max(0,b-a),1);
+  /* the darker running tips — what makes the lines read as RUNNING */
+  ctx.fillStyle=DARK;
+  for(const l of L.v) for(const hd of l.heads){
+    const a=hd.dir>0?hd.p-HEAD:hd.p, b=hd.dir>0?hd.p:hd.p+HEAD;
+    ctx.fillRect(Math.round(l.x),Math.round(Math.max(0,a)),1,Math.max(0,Math.min(H,b)-Math.max(0,a)));
+  }
+  for(const l of L.h) for(const hd of l.heads){
+    const a=hd.dir>0?hd.p-HEAD:hd.p, b=hd.dir>0?hd.p:hd.p+HEAD;
+    ctx.fillRect(Math.round(Math.max(0,a)),Math.round(l.y),Math.max(0,Math.min(W,b)-Math.max(0,a)),1);
+  }
+}
+function paintFullGrid(){
+  ctx.fillStyle=GRID;
+  for(const x of X) ctx.fillRect(Math.round(x),0,1,H);
+  for(const y of Y) ctx.fillRect(0,Math.round(y),W,1);
+}
+/* Question 1 does not wait for the poster to finish arriving — it pops in
+   (scale+opacity, like the real .popup's "pop" keyframe) the instant the
+   paper starts colouring in, so the two read as one beat: the board and its
+   first question show up together, not one after the other. tt is elapsed
+   ms since the paper started (negative before then, held at hidden). */
+const POP_DUR=340;                 /* ms — matches .popup.open's real .34s pop */
+function paintQCard(tt){
+  if(tt<0){ qcard.style.opacity=0; return; }
+  const p=easeOut(Math.max(0,Math.min(1,tt/POP_DUR)));
+  qcard.style.opacity=p;
+  qcard.style.transform='scale('+(0.38+0.62*p).toFixed(4)+')';
+}
+/* The poster is not part of the interface grid, so it does not arrive with
+   it — it arrives AFTER, once every square and every gridline has already
+   settled. Its four rules are not a frame drawn around the sheet: exactly
+   like the real interface's .sheet-lines (top:0;bottom:0 / left:0;right:0 —
+   see architecture-of-time.html:527-528), each one runs the FULL height or
+   width of the world, and the sheet is just where those four lines happen
+   to sit — the rest of each line keeps going past it, above/below/beside,
+   as an ordinary darker rule.
+
+   The paper is not a separate arrival after that: it has no moment of its
+   own where it just appears — it starts filling the instant the last rule
+   (the bottom one, sweeping rightward) starts. But it is not tied to that
+   rule's own speed any more: the rule draws at the same pace as its three
+   neighbours, while the paper's own "colouring in" runs on a longer, slower
+   timeline of its own. Since PAPER_FILL_DUR is well past SHEET_LINE_DUR, the
+   paper's edge can never catch up to — let alone pass — the rule beside it. */
+const SHEET_LINE_DUR=700;          /* ms for one rule to cross the viewport, eased */
+const SHEET_STAIR=140;             /* ms between one rule starting and the next */
+const PAPER_FILL_DUR=1500;         /* ms for the paper itself to colour in, eased — slower */
+function paintSheet(t){
+  const sr=sheet.x+sheet.w, sb=sheet.y+sheet.h;
+  const lines=[
+    {v:true,  c:sheet.x, delay:0},
+    {v:true,  c:sr,      delay:SHEET_STAIR},
+    {v:false, c:sheet.y, delay:2*SHEET_STAIR},
+    {v:false, c:sb,      delay:3*SHEET_STAIR},
+  ];
+  ctx.fillStyle=DARK;
+  let linesDone=true;
+  lines.forEach(l=>{
+    const p=easeOut(Math.max(0,Math.min(1,(t-l.delay)/SHEET_LINE_DUR)));
+    if(p<1) linesDone=false;
+    const len=p*(l.v?H:W);
+    if(len<=0) return;
+    if(l.v) ctx.fillRect(Math.round(l.c),0,1,len);
+    else ctx.fillRect(0,Math.round(l.c),len,1);
+  });
+  const paperDelay=3*SHEET_STAIR;
+  const pp=easeOut(Math.max(0,Math.min(1,(t-paperDelay)/PAPER_FILL_DUR)));
+  const revealed=pp*sheet.w;
+  if(revealed>0){
+    ctx.fillStyle='#F4F3F0';
+    ctx.fillRect(sheet.x,sheet.y,revealed,sheet.h);
+  }
+  paintQCard(t-paperDelay);
+  return linesDone&&pp>=1;
+}
+
+/* ---------- the loop ---------- */
+function frame(now){
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=INK; ctx.fillRect(0,0,W,H);
+
+  if(phase==='rest'){
+    paintSquares(); paintTiles();
+  }else if(phase==='run'){
+    const t=FREEZE!=null?FREEZE:now-t0;
+    const L=allLines(t);
+    collect(L);
+    paintSquares(); paintLines(L); paintTiles();
+    if(FREEZE==null&&linesDone(L)){ phase='sheet'; ts0=now; }
+  }else if(phase==='sheet'){
+    paintFullGrid();
+    const st=SHEET_FREEZE!=null?SHEET_FREEZE:now-ts0;
+    if(paintSheet(st)&&SHEET_FREEZE==null) phase='done';
+  }else{ /* done */
+    paintFullGrid(); paintSheet(1e9);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- control ---------- */
+function reset(){
+  measure();
+  phase='rest';
+  qcard.style.opacity=0;
+}
+function play(){
+  reset();
+  setTimeout(()=>{ t0=performance.now(); phase='run'; },550);
+}
+document.querySelectorAll('#ui button[data-v]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#ui button[data-v]').forEach(x=>x.classList.toggle('on',x===b));
+    variant=b.dataset.v; play();
+  });
+});
+document.getElementById('replay').addEventListener('click',play);
+/* Start is clickable, like the real screen */
+cv.addEventListener('click',e=>{
+  if(phase!=='rest')return;
+  const s=tiles.find(t=>t.start);
+  if(e.clientX>=s.x&&e.clientX<=s.x+s.w&&e.clientY>=s.y&&e.clientY<=s.y+s.h){
+    t0=performance.now(); phase='run';
+  }
+});
+cv.addEventListener('mousemove',e=>{
+  const s=tiles.find(t=>t.start);
+  cv.style.cursor=(phase==='rest'&&s&&e.clientX>=s.x&&e.clientX<=s.x+s.w&&
+    e.clientY>=s.y&&e.clientY<=s.y+s.h)?'pointer':'default';
+});
+/* a resize re-measures and replays, so the film never strands on a blank rest */
+let rsT=null;
+addEventListener('resize',()=>{ clearTimeout(rsT); rsT=setTimeout(play,250); });
+
+measure();
+requestAnimationFrame(frame);
+if(SHEET_FREEZE!=null){ squares.forEach(s=>s.alive=false); tiles.forEach(t=>t.alive=false); ts0=performance.now(); phase='sheet'; }
+else if(FREEZE!=null){ t0=performance.now(); phase='run'; }
+else setTimeout(play,700);       /* plays itself once, like a film */
+</script>
+</body>
+</html>

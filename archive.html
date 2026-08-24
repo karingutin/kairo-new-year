@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KAIRO — Archive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Wix+Madefor+Display:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --c:34px;                     /* the interface cell — the whole archive sits on it */
+    --ink:#1b1b1b;                /* the gallery ground: dark, so the white sheets read */
+    --dot:#3b3b3b;
+    --dim:#7c7c7c;
+    --red:#F5242B;
+    --face:'Wix Madefor Display',system-ui,sans-serif;
+    --mono:ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--ink);color:#fff;font-family:var(--face);
+    -webkit-font-smoothing:antialiased}
+  /* the same lattice the whole system is built on, one dot per cell junction */
+  body{background-image:radial-gradient(var(--dot) 1px, transparent 1.4px);
+    background-size:var(--c) var(--c);
+    background-position:calc(50% ) calc(50%);}
+  /* the generator runs in here, off-screen but laid out (display:none would zero its box) */
+  #gen{position:fixed;left:-4000px;top:0;width:1100px;height:1560px;border:0;visibility:hidden}
+
+  header{padding:calc(var(--c)*2) 0 0 calc(var(--c)*3);}
+  .mark{display:flex;align-items:center;gap:14px}
+  .mark i{width:var(--c);height:var(--c);background:var(--red);display:block}
+  .mark h1{margin:0;font-size:24px;font-weight:500}
+  header p{margin:10px 0 0;color:var(--dim);font-family:var(--mono);font-size:12px;letter-spacing:2px}
+
+  /* the uniform grid: four posters a row, every box a whole number of cells so the
+     whole thing lands on the lattice — poster 7x10 cells, a 2-cell gutter */
+  #grid{display:grid;grid-template-columns:repeat(4, calc(var(--c)*7));
+    gap:calc(var(--c)*2) calc(var(--c)*2);justify-content:center;
+    padding:calc(var(--c)*2.5) 0 calc(var(--c)*4);}
+  .slot{width:calc(var(--c)*7)}
+  .thumb{width:calc(var(--c)*7);height:calc(var(--c)*10);background:#fff;overflow:hidden;
+    box-shadow:0 2px 0 rgba(0,0,0,.25)}
+  .thumb svg{width:100%;height:100%;display:block}
+  .cap{margin-top:calc(var(--c)*.4);color:#8a8a8a;font-family:var(--mono);font-size:10.5px;
+    letter-spacing:1px;height:calc(var(--c)*1)}
+  .loading{grid-column:1 / -1;text-align:center;color:var(--dim);font-family:var(--mono);
+    letter-spacing:2px;padding:80px 0}
+</style>
+</head>
+<body>
+  <header>
+    <div class="mark"><i></i><h1>Archive</h1></div>
+    <p id="count">LOADING ARCHITECTURES OF TIME…</p>
+  </header>
+
+  <div id="grid"><div class="loading">DRAWING POSTERS…</div></div>
+
+  <!-- the real tool, hidden; the archive drives it to random states and reads buildSVG() -->
+  <iframe id="gen" src="architecture-of-time.html" aria-hidden="true"></iframe>
+
+<script>
+(function(){
+  const N = 8;                              // how many sample posters to draw
+  const grid = document.getElementById('grid');
+  const iframe = document.getElementById('gen');
+
+  /* size the cell to the viewport so four 7-cell posters + gutters fit with margin */
+  function sizeCell(){
+    const perRow = 4*7 + 3*2 + 2*3;         // posters + gutters + side margins, in cells
+    const c = Math.max(18, Math.min(40, Math.floor(window.innerWidth*0.94 / perRow)));
+    document.documentElement.style.setProperty('--c', c+'px');
+  }
+  sizeCell(); addEventListener('resize', sizeCell);
+
+  const DAYS=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const MON=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  function stamp(daysAgo){
+    const d=new Date(Date.now() - daysAgo*86400000 - Math.floor(Math.random()*86400000));
+    const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
+    return DAYS[d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()]+' · '+hh+':'+mm;
+  }
+
+  /* The tool declares BANK and S with `const`, so they are NOT properties of its
+     window — only `buildSVG` (a function declaration) is reachable from here. So
+     the randomise+build runs INSIDE the iframe's own scope via eval, where those
+     lexical bindings are visible, and hands back the finished poster SVG. */
+  const GEN_CODE = "(function(){var ks=Object.keys(BANK);for(var i=0;i<ks.length;i++){var k=ks[i],q=BANK[k],v;"
+    + "if(q.type==='number'||q.type==='bar'){v=q.min+Math.floor(Math.random()*(q.max-q.min+1));}"
+    + "else if(Array.isArray(q.options)&&q.options.length){var o=q.options[Math.floor(Math.random()*q.options.length)];v=Array.isArray(o)?o[0]:o;}"
+    + "else{v=q.default;}S.answers[k]=v;S.touched[k]=true;}"
+    + "if('seed' in S){S.seed=(Math.random()*1e9)>>>0;}return buildSVG();})()";
+  const READY_CODE = "typeof BANK==='object'&&typeof S==='object'&&typeof buildSVG==='function'";
+
+  function addPoster(svg, daysAgo){
+    const slot=document.createElement('div'); slot.className='slot';
+    const thumb=document.createElement('div'); thumb.className='thumb'; thumb.innerHTML=svg;
+    const s=thumb.querySelector('svg');
+    if(s){ s.removeAttribute('width'); s.removeAttribute('height');
+           s.setAttribute('preserveAspectRatio','xMidYMid meet'); }
+    const cap=document.createElement('div'); cap.className='cap'; cap.textContent=stamp(daysAgo);
+    slot.appendChild(thumb); slot.appendChild(cap); grid.appendChild(slot);
+  }
+
+  function generate(){
+    const cw=iframe.contentWindow;
+    grid.innerHTML='';
+    let day=0;
+    for(let i=0;i<N;i++){
+      let svg;
+      try{ svg=cw.eval(GEN_CODE); }catch(e){ continue; }
+      if(!svg) continue;
+      day += 1 + Math.floor(Math.random()*3);
+      addPoster(svg, day);
+    }
+    iframe.style.display='none';
+    document.getElementById('count').textContent = '2,847 ARCHITECTURES OF TIME';
+  }
+
+  /* wait until the tool inside the iframe has defined its generator */
+  iframe.addEventListener('load', function(){
+    const cw=iframe.contentWindow;
+    let tries=0;
+    (function wait(){
+      let ok=false; try{ ok=cw.eval(READY_CODE); }catch(e){ ok=false; }
+      if(ok){ generate(); return; }
+      if(tries++ < 120){ setTimeout(wait, 60); }
+      else { grid.innerHTML='<div class="loading">COULD NOT REACH THE GENERATOR</div>'; }
+    })();
+  });
+})();
+</script>
+</body>
+</html>
