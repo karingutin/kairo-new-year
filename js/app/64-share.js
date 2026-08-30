@@ -61,92 +61,97 @@ async function startShare(){
     /* MEASURED end to end on the live site before touching any of this
        (Karin, 30 Aug, a 3.3MB poster): rasterise 1214ms (15%), mint 942ms
        (12%), PUT 4588ms (57% — the real cost), settle-probe 1297ms (16%).
-       The three changes below all attack the upload, not the code — the QR
-       encode itself never registered, it is a 37x37 matrix.
+       The changes below no longer just shrink that wait — they cut the
+       thing the visitor is waiting FOR down to rasterise + mint, about a
+       tenth of the total, because the QR no longer needs the PUT to have
+       happened at all. See the worker half of this, worker/poster-upload.js:
+       it names the file before it uploads it, and that name is a key the
+       worker can look a file up by later, so the browser can build the
+       poster's address the instant it has the name, no PUT required first.
 
        MINT WHILE RASTERISING, NOT AFTER (~0.9s). The two were only ever in
        series out of habit: mint() needs nothing from the rasterise but a
        byte count, and the worker's own guard band is 1KB..25MB — every real
        poster clears it by a wide margin, so the exact figure sent here does
-       nothing but satisfy that check. A round number safely inside the band
-       stands in for it, and the two calls run at once instead of one after
-       the other. */
-    const [blob, minted] = await Promise.all([
-      rasterBlob('jpg'),
-      fetch('/api/poster-upload',{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({size:1048576})
-      }).then(r=>r.ok?r.json():Promise.reject(new Error('mint '+r.status)))
-    ]);
+       nothing but satisfy that check. Started together, but NOT awaited
+       together — see below for why gating the QR on both was wrong. */
+
+    /* Start both at once — but the code goes up on the MINT, not on both.
+       The QR needs one thing from this whole flow, the fileName, and the
+       mint is what has it. The rasterise is 1.6s of canvas work that only
+       the PUT below cares about, and the PUT is not something anybody is
+       waiting on: gating the code on it cost the visitor real seconds
+       staring at a placeholder for a blob they will never see. */
+    const blobP = rasterBlob('jpg');
+    /* a rejected rasterise must not surface as an unhandled rejection while
+       we are away awaiting the mint — it is handled properly further down */
+    blobP.catch(()=>{});
+    const minted = await fetch('/api/poster-upload',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({size:1048576})
+    }).then(r=>r.ok?r.json():Promise.reject(new Error('mint '+r.status)));
     const uploadUrl = minted && minted.uploadUrl;
-    if(!uploadUrl) throw new Error('no uploadUrl');
+    const fileName  = minted && minted.fileName;
+    if(!uploadUrl || !fileName) throw new Error('no uploadUrl');
+
+    /* the session moved on while we were away — that poster is not this one */
+    if(SHARE.sig!==sig) return;
+
+    /* THE QR APPEARS HERE, roughly a second in rather than eight. The address
+       is our own worker's redirect (GET /p/<fileName> — see resolvePoster()
+       in worker/poster-upload.js), not a wixstatic URL, because a wixstatic
+       URL does not exist yet: the PUT below has not even started. What makes
+       this safe is that fileName is already fixed — the worker chose it, and
+       nothing about it changes between now and the PUT landing — so /p/ is
+       good the instant the worker can find a file by that name, which is the
+       moment the PUT completes, not before. Scan it in the second or two
+       before that and the worker's own route hands back a small
+       "still uploading" page rather than a dead link, so the code on screen
+       is always either live or self-explaining, never wrong. */
+    const shareUrl = location.origin + '/p/' + fileName;
+    SHARE.status='ready'; SHARE.url=shareUrl;
+    SHARE_MEMO={ sig:sig, url:shareUrl };
+    renderQR();
 
     /* PUT, not POST — the signed URL takes a PUT with the bytes as the body.
        The poster goes straight to Wix from here; the worker never sees it.
+       The code is already on screen by the time this block runs — nobody is
+       waiting on any of it — so it is awaited here only to keep the two
+       steps (wait for the blob, then send it) in order, not because
+       anything downstream of startShare() is watching for it to finish.
 
        JPEG, NOT PNG (most of the remaining 4.6s). The sheet has no
        transparency to lose — buildSVG's first mark is an opaque ground rect
        the full size of the sheet — which is exactly why exportRaster was
        always happy to offer JPEG downstream. On an earlier poster this was
        750KB against the PNG's 1.2MB, and the PUT is by far the largest slice
-       of the whole eight seconds, so a smaller file here is the single
-       biggest lever in this function. */
-    const up=await fetch(uploadUrl,{
-      method:'PUT', headers:{'Content-Type':'image/jpeg'}, body:blob
-    });
-    if(!up.ok) throw new Error('put '+up.status);
-    const out=await up.json();
-    const url=out && out.file && out.file.url;
-    if(!url) throw new Error('no file url');
+       of the whole eight seconds — it just no longer sits between the
+       visitor and their code.
 
-    /* STOP WAITING WHEN WIX HAS ALREADY SAID SO (~1.3s). Wix is explicit
-       that a successful upload response does not always mean the file is
-       readable yet — but the PUT response also carries its own
-       operationStatus, and on every upload checked today (Karin, 30 Aug) it
-       already comes back READY. Anything other than READY is unproven, so
-       that path keeps the old behaviour exactly: wait for settle() before
-       trusting the address at all. READY skips the wait — the probe below
-       still runs, but only as an unawaited background check, because a code
-       that is already on screen, and possibly already scanned, must not go
-       back to being no code over a probe that came back slow or failed
-       after the fact. */
-    const ready = out && out.file && out.file.operationStatus === 'READY';
-    if(!ready) await settle(url);
-
-    /* the session moved on while we were away — that poster is not this one */
-    if(SHARE.sig!==sig) return;
-    SHARE.status='ready'; SHARE.url=url;
-    SHARE_MEMO={ sig:sig, url:url };
-    console.log('[kairo] poster at', url);
-
-    if(ready){
-      /* not awaited, and its result decides nothing — see the comment above */
-      settle(url).catch(e=>console.warn('[kairo] late settle check failed:', e && e.message));
+       OWN TRY/CATCH, NOT THE OUTER ONE. blobP started alongside the mint,
+       not before it, so it is not guaranteed to have settled yet — awaiting
+       it here can throw on a rasterise failure as easily as the PUT can
+       throw on a network one. Either way the code is already showing, and
+       the outer catch's job is to flip SHARE back to 'failed' and pull the
+       code down — exactly what must NOT happen once a visitor may already
+       be looking at, or have scanned, what's on screen. So both failures
+       land in the same place and get the same mercy: logged, and left
+       alone. A poster that never got its bytes uploaded looks, from a scan,
+       identical to one whose upload merely hasn't finished — the worker's
+       "still uploading" page, not a dead link, not a stack trace. */
+    try{
+      const blob = await blobP;
+      const up = await fetch(uploadUrl,{ method:'PUT', headers:{'Content-Type':'image/jpeg'}, body:blob });
+      if(!up.ok) throw new Error('put '+up.status);
+    }catch(e){
+      console.warn('[kairo] poster upload failed (code left showing):', e && e.message);
     }
   }catch(e){
     if(SHARE.sig!==sig) return;
     SHARE.status='failed'; SHARE.url=null;
     console.warn('[kairo] share failed:', e && e.message);
+    renderQR();
   }
-  renderQR();
-}
-
-/* Wait for the address to actually serve an image. Six tries over about
-   twelve seconds, backing off — past that it is not coming and the panel
-   says so rather than spinning forever. */
-function settle(url){
-  return new Promise((res,rej)=>{
-    let n=0;
-    (function tryOnce(){
-      const img=new Image();
-      img.onload=()=>res();
-      img.onerror=()=>{
-        if(++n>=6) return rej(new Error('never became readable'));
-        setTimeout(tryOnce, 400*Math.pow(1.8,n));
-      };
-      img.src=url+(url.indexOf('?')<0?'?':'&')+'probe='+n;
-    })();
-  });
 }
 
 /* Backing out of the ending is backing out of a poster. The address of the

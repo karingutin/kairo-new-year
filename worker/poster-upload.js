@@ -50,6 +50,22 @@ const MAX_AGE_MS = 48 * 60 * 60 * 1000;
 const MIN_BYTES = 1024;
 const MAX_BYTES = 25 * 1024 * 1024;
 
+/* The exact shape fileName is generated in below — 'kairo-' + base36 time +
+   '-' + six base36 random chars + an extension. GET /p/<fileName> below
+   re-checks every visitor-supplied name against this same pattern before it
+   is allowed anywhere near a Wix search call, so the two must never drift
+   apart: widen one and forget the other, and either good uploads start
+   404ing or the guard stops guarding anything. */
+const FILE_NAME_RE = /^kairo-[a-z0-9]+-[a-z0-9]+\.(jpg|png)$/;
+
+/* Wix's file search is free-text and fuzzy — it is built to find "the photo
+   that looks like a sunset", not "the file named exactly this". Handed a
+   fileName it will happily rank near-misses (an older poster whose random
+   suffix shares a few characters) ahead of or alongside the real one. So the
+   route below never trusts position in the results; it filters for the one
+   file whose displayName is a byte-for-byte match and ignores the rest. */
+const SEARCH_URL = 'https://www.wixapis.com/site-media/v1/files/search';
+
 /* Tokens last four hours. Cached per isolate — an isolate that outlives the
    token simply mints another, and there is nothing to invalidate because the
    cache cannot outlive the isolate holding it. */
@@ -89,6 +105,13 @@ const json = (body, status) => new Response(JSON.stringify(body), {
 export default {
   async fetch(request) {
     const { pathname } = new URL(request.url);
+
+    /* GET /p/<fileName> — the redirect that lets a QR exist before the
+       upload it points at has finished. Checked BEFORE the /api/poster-upload
+       route below because this is the one the QR actually calls; the mint
+       route only ever runs once per poster, this one runs once per scan. */
+    if (pathname.startsWith('/p/')) return resolvePoster(pathname.slice(3));
+
     if (pathname !== '/api/poster-upload') return new Response('Not found', { status: 404 });
     if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
@@ -138,15 +161,119 @@ export default {
       const j = await r.json();
       if (!j.uploadUrl) return json({ error: 'upstream' }, 502);
 
-      /* Nothing but the URL goes back. Not the token, not the file id, not an
-         echo of anything the caller sent. */
-      return json({ uploadUrl: j.uploadUrl });
+      /* The URL and now the name go back — not the token, not the file id,
+         not an echo of anything the caller sent. Handing out fileName is new
+         and it is safe for the same three reasons: the worker generated it
+         (never a value the visitor supplied), it is effectively unguessable
+         (a base36 timestamp plus six random base36 characters), and even a
+         guess buys the guesser nothing but the ability to fetch a poster
+         somebody else just made — the same thing the QR itself hands to
+         anyone who points a camera at it. It is the address, not the key. */
+      return json({ uploadUrl: j.uploadUrl, fileName: fileName });
     } catch (e) {
       console.log('poster-upload error', e && e.message);
       return json({ error: 'upstream' }, 502);
     }
   }
 };
+
+/* The waiting page — what a scan gets back when the name is well-formed but
+   the search below can't find it yet, almost always because the visitor
+   scanned in the second or two between the mint returning (which is when the
+   QR appears, see js/app/64-share.js) and the PUT actually landing. It is not
+   an error page: it is the poster arriving, so it says that and nothing else,
+   and it refreshes itself so the visitor never has to act. Plain HTML, no
+   script needed — a meta refresh does the whole job and still works with
+   scripting off, which a phone's QR-scan browser sometimes is. */
+const WAITING_HTML = '<!doctype html><html><head><meta charset="utf-8">'
+  + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+  + '<meta http-equiv="refresh" content="2">'
+  + '<title>kairo</title><style>'
+  + 'html,body{height:100%;margin:0;background:#141414;color:#ECECEC;'
+  + 'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;'
+  + 'display:flex;align-items:center;justify-content:center;text-align:center}'
+  + 'p{font-size:1rem;opacity:.8;letter-spacing:.02em}'
+  + '</style></head><body><p>still uploading&hellip;</p></body></html>';
+
+const waitingPage = () => new Response(WAITING_HTML, {
+  status: 200,
+  headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }
+});
+
+/* Distinguishable from "no exact match found" — see the retry in
+   resolvePoster below, which mirrors the mint route's one-retry-on-401 rule. */
+const UNAUTHORIZED = Symbol('unauthorized');
+
+/* One search call, filtered down to the one file that actually matches.
+   Wix's search is fuzzy free text (see the comment on SEARCH_URL above) —
+   it is built to find "something like this", and handed an exact fileName
+   it will return near-misses ranked alongside or even above the real thing.
+   So this never trusts the top result; it filters every hit for the one
+   whose displayName equals the name byte-for-byte, and returns nothing if
+   that exact file isn't among them. */
+async function searchExact(token, name) {
+  const r = await fetch(SEARCH_URL, {
+    method: 'POST',
+    // Same rule as mint(): the raw token, never 'Bearer ' + token.
+    headers: { 'Authorization': token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ search: name, rootFolder: 'MEDIA_ROOT', paging: { limit: 5 } })
+  });
+  if (r.status === 401) return UNAUTHORIZED;
+  if (!r.ok) {
+    console.log('poster search failed', r.status, await r.text());
+    return null;
+  }
+  const j = await r.json();
+  const files = (j && j.files) || [];
+  return files.find((f) => f.displayName === name) || null;
+}
+
+/* GET /p/<fileName> — the redirect a QR encodes instead of a wixstatic URL
+   it cannot have yet. See the top of this file for why the address can be
+   minted before the upload finishes at all: the worker names the file
+   before it uploads it, so the name alone is enough to find it afterwards.
+
+   Wrapped so that ANY failure here — a bad token, a network blip, Wix
+   itself erroring — lands on the same waiting page a too-early scan gets,
+   never a 500. A visitor who scans a poster mid-upload should see "still
+   arriving", not a stack trace; the two situations are indistinguishable
+   from where they are standing, so they get the same answer. */
+async function resolvePoster(rawName) {
+  try {
+    let name;
+    try {
+      name = decodeURIComponent(rawName);
+    } catch (e) {
+      return new Response('Not found', { status: 404 });
+    }
+
+    /* The one hard gate before anything touches Wix: this is a visitor-
+       supplied string reaching a search API, and the pattern below is
+       exactly what fileName is built from in the mint route above. Anything
+       else is refused right here, with no network call spent on it. */
+    if (!FILE_NAME_RE.test(name)) return new Response('Not found', { status: 404 });
+
+    const token = await accessToken(false);
+    let file = await searchExact(token, name);
+    /* Same one retry the mint path allows itself: a cached token that
+       expired a little early is worth a second round trip, nothing more. */
+    if (file === UNAUTHORIZED) file = await searchExact(await accessToken(true), name);
+
+    if (file && file.url) {
+      return new Response(null, {
+        status: 302,
+        /* no-store, not a cacheable redirect — the file may not exist yet on
+           an early scan (see waitingPage above), so a cached 302 pointing
+           nowhere is worse than no cache at all. */
+        headers: { 'Location': file.url, 'Cache-Control': 'no-store' }
+      });
+    }
+    return waitingPage();
+  } catch (e) {
+    console.log('poster-resolve error', e && e.message);
+    return waitingPage();
+  }
+}
 
 function mint(token, fileName, size) {
   return fetch(UPLOAD_URL, {
