@@ -8,39 +8,39 @@
    cells (Karin, 16 Aug) and three lines of body is exactly what fits under the
    title inside it. Anything longer is not clipped gracefully, it is CUT OFF, so
    a new read has to be checked against the card, not just written. At this
-   width and size that lands at roughly 78 characters, but the wrap decides, not
-   the count — measure it. */
+   width and size that lands at 57 to 75 characters (measured, 30 Aug), but the
+   wrap decides, not the count — measure it. */
 /* Rosh Hashanah edition, hover-copy pass (Karin, 30 Aug): the month names
    MONTH_READ used to key on are gone — 'month' now asks where the year's
    energy went, eight life areas (see js/10-bank.js). Keys match the bank's
    own options exactly, which are stored ALL CAPS. */
 const MONTH_READ={
-  CAREER:"Work took more of you this year than you meant to give it.",
+  CAREER:"Work took more of you this year than you ever really meant to give.",
   FAMILY:"Home is where most of it actually happened, whether you clocked it or not.",
-  HEALING:"You spent this year putting something back together, quietly.",
-  ROMANCE:"You’d do the whole year over just for that part.",
-  FRIENDS:"Somebody kept showing up for you, and you noticed.",
+  HEALING:"You spent this whole year quietly putting something back together.",
+  ROMANCE:"You’d live the whole year again, just to get back to that part once more.",
+  FRIENDS:"Somebody kept turning up for you all year, and you noticed it.",
   TRAVEL:"You kept leaving, like the answer was always somewhere else.",
-  LEISURE:"You finally let yourself stop, and it didn’t fall apart.",
-  FAITH:"Something you can’t quite name got you through this year."
+  LEISURE:"You finally let yourself stop this year, and nothing fell apart at all.",
+  FAITH:"Something you still can’t quite name got you through this year."
 };
 /* Rosh Hashanah edition, hover-copy pass (Karin, 30 Aug): 'alarms' stopped
    being a snooze count a while back — it asks how many new people this year
    brought. One line per possible answer, 0..12. */
 const ALARM_READ={
-  0:"Nobody new made it in this year, and that was fine by you.",
+  0:"Nobody new made it in this year, and you were perfectly fine with that.",
   1:"One person walked in, and the year rearranged around them a little.",
   2:"Two people. Small number, but you’ll remember exactly how you met them.",
   3:"Three new people, three different doors, all opened the same year.",
-  4:"Four strangers who aren’t strangers any more.",
-  5:"Five new people. More than you expected to let in.",
-  6:"Six. Half a dozen names you didn’t know this time last year.",
+  4:"Four strangers who somehow aren’t strangers to you any more now.",
+  5:"Five new people. More than you ever expected to let in this year.",
+  6:"Six. Half a dozen names you didn’t know a year ago, give or take.",
   7:"Seven new people — the year kept handing you someone new.",
-  8:"Eight. You said yes to a lot of introductions this year.",
-  9:"Nine new people, and you’re still not sure how it happened.",
-  10:"Ten. Somewhere along the way this became a wide-open year.",
-  11:"Eleven new people. Almost nobody stayed a stranger for long.",
-  12:"Twelve. One new person for every month, like clockwork."
+  8:"Eight. You said yes to more introductions than you meant to this year.",
+  9:"Nine new people, and you still can’t quite say how it happened, or why.",
+  10:"Ten. Somewhere along the way, this year turned into a wide-open one.",
+  11:"Eleven new people, and almost nobody stayed a stranger for long.",
+  12:"Twelve. One new person for every month of the year, right on schedule."
 };
 const VAC_READ={
   '1':"One memory that never leaves. Everything else fades; that one built you.",
@@ -53,26 +53,26 @@ const VAC_READ={
    as its own beam-cap shape (see js/poster/26b-radial-block.js). Keys match
    the bank's own options exactly. */
 const BORN_READ={
-  'Good news':"Whatever it is, you’ve been rehearsing how you’ll react.",
-  'Promotion':"You want proof, on paper, that this mattered.",
+  'Good news':"Whatever it turns out to be, you’ve rehearsed how you’ll take it.",
+  'Promotion':"You want proof, on paper, that this year counted for something real.",
   'Closure':"One conversation you keep having in your head instead of out loud.",
-  'Reunion':"A close friend? A former lover? Who are you missing?"
+  'Reunion':"A close friend, a former lover — who exactly are you missing now?"
 };
 /* Rosh Hashanah edition, hover-copy pass (Karin, 30 Aug): 'decades' stopped
    counting years of life left a while back — it's a wish for the year
    ahead now, Calm at one end and Overflowing at the other. One line per
    stop on the bar. */
 const DECADE_READ={
-  10:"You want a year with nothing in it demanding your attention.",
+  10:"You want a year with nothing in it shouting for your attention at all.",
   20:"Mostly quiet, with room to breathe if something does come up.",
-  30:"You want enough happening to notice you’re alive, no more.",
-  40:"Steady. You’ll take a full year, as long as it’s still yours.",
-  50:"You want a year that could tip either way and you’d be fine.",
-  60:"You’re ready for the year to ask a bit more of you.",
+  30:"You want just enough happening to notice you’re still alive at all.",
+  40:"Steady does it. A full year suits you, as long as it stays your own.",
+  50:"You want a year that could go either way, and you’d be fine either way.",
+  60:"You’re ready for the year to ask more of you than it did last time.",
   70:"You want it full — more happening than not, and you mean that.",
-  80:"You’re asking for a lot. You want the year to earn its keep.",
-  90:"You want a year that barely leaves you time to describe it.",
-  100:"You want the year too full to sum up in one sentence."
+  80:"You’re asking for a lot. You want the year to earn its place here.",
+  90:"You want a year so full it barely leaves you time to describe it.",
+  100:"You want a year so full that no single sentence could hold it."
 };
 /* The week/weekend bar has twenty-one stops, so the read works in BANDS rather
    than one line per stop — the two ends, the two leans, and the dead centre.
@@ -83,11 +83,11 @@ const DECADE_READ={
    being week-vs-weekend a while back — it looks back at how the year
    actually turned out, Predictable to Surprising. */
 function sixweekRead(v){
-  if(v<=15) return "You saw this year coming, almost beat for beat.";
+  if(v<=15) return "You saw this year coming, practically beat for beat, start to finish.";
   if(v<=40) return "Mostly what you expected, with a few lines that moved on their own.";
-  if(v<=55) return "Half of it you saw coming. Half of it you didn’t.";
-  if(v<=80) return "More of it surprised you than not, and you’re still catching up.";
-  return "Nothing this year went the way you thought it would.";
+  if(v<=55) return "Half of this year you saw coming. The other half, you never did.";
+  if(v<=80) return "More of this year surprised you than not, and you’re still catching up.";
+  return "Nothing this year went anywhere near the way you thought it would.";
 }
 function personalNote(qid){
   const D=derive();
@@ -132,9 +132,9 @@ function personalNote(qid){
    Rosh Hashanah edition (Karin, 26 Aug): provisional, pending the full
    hover-copy pass — see the open item on MONTH_READ/ALARM_READ/sixweekRead. */
 const SAYING_READ={
-  Courage:"Bold steps. You'd rather move before you feel ready than wait for it.",
-  Growth:"Reach higher. You'd rather stretch than stay exactly where you are.",
-  Renewal:"Start fresh. You're ready to let the old shape go and see what grows.",
+  Courage:"Bold steps. You’d rather move before you feel ready than wait for it.",
+  Growth:"Reach higher. You’d rather stretch than stay exactly where you are.",
+  Renewal:"Start fresh. You’re ready to let the old shape go and see what grows.",
   Clarity:"Clear path. You want to see it plainly, not manage every version of it."
 };
 const hoverCard=document.createElement('div');
