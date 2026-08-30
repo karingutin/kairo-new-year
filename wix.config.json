@@ -1,0 +1,8 @@
+{
+  "projectType": "Site",
+  "appId": "65a8ee1d-3833-48b0-b63a-852c2763c9c8",
+  "siteId": "e7a216e5-51cb-4685-abe5-b5d4a38973d6",
+  "site": {
+    "outputDirectory": { "client": "./build/client", "server": "./build/server" }
+  }
+}

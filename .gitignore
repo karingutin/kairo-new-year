@@ -26,3 +26,11 @@ architecture-of-time-dots.html
 
 # Wix CLI/MCP scratch log.
 .wix/
+
+# The staged release. Rebuilt by tools/stage.sh on every deploy, and the worker
+# inside it carries the client secret substituted in — this must never be
+# tracked.
+build/
+
+# The two credentials tools/stage.sh substitutes. See .env.example.
+.env

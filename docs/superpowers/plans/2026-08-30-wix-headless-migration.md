@@ -270,6 +270,10 @@ Three possible outcomes — **record which one in the commit message**:
 2. `/api/ping` returns the JSON **and** `/` returns the JSON too → the Worker gets everything. **Stop.** Task 2's Worker must also serve the static assets, which is a different shape than this plan specifies. Report back before writing it.
 3. `/api/ping` 404s → the server half is not being deployed or is not named as expected. Try `build/server/worker.js` and `build/server/_worker.js` as the entry filename (edit the `sed` output path in `tools/stage.sh`), re-stage, re-preview. If none work, report back.
 
+**ANSWERED, 30 Aug — outcome 1, with one correction.** Static wins: `/`, `/js/00-core.js` and `/css/00-ground.css` all serve as files, and the Worker receives only unmatched paths (`/api/ping` and `/api/whatever` both reached it). The plan proceeds as written and the Worker needs no static-asset branch.
+
+The correction: the entry file must be named **`entry.mjs`**, not `index.js`. The runtime imports `/user-code/entry.mjs`, and any other name deploys without error and then answers every request with `Cannot find module '/user-code/entry.mjs'` — which reads like a routing failure and is not one. `tools/stage.sh` writes `entry.mjs` and carries a comment saying why.
+
 - [ ] **Step 10: Open the preview and confirm the site itself is intact**
 
 Use `preview_start` with the preview URL, then check:
