@@ -45,7 +45,7 @@ Stop at those and hand back.
 |---|---|
 | `worker/poster-upload.js` *(new)* | The Worker. Token exchange, `generate-upload-url`, request guards. Never sees poster bytes. |
 | `tools/stage.sh` *(new)* | Copies the served site into `build/client`, the Worker into `build/server` with credentials substituted. |
-| `js/vendor/qrcodegen.js` *(new)* | Vendored MIT QR encoder, byte-for-byte upstream. Never edited. |
+| `js/vendor/qrcode-generator.js` *(new)* | Vendored MIT QR encoder, byte-for-byte upstream. Never edited. |
 | `js/app/64-share.js` *(new)* | Upload call, readiness wait, QR geometry, teardown. The whole feature's browser half. |
 | `js/app/70-collect.js` *(modify)* | `rasterBlob()` split out of `exportRaster()`. |
 | `js/app/51-flow.js` *(modify)* | `showFinish()` starts the upload; `hideFinish()` tears it down. |
@@ -849,33 +849,39 @@ ending, the download and the poster are untouched by it."
 ## Task 5: The QR on the grid
 
 **Files:**
-- Create: `js/vendor/qrcodegen.js`
+- Create: `js/vendor/qrcode-generator.js`
 - Modify: `js/app/64-share.js` (`renderQR()` replaces the stub)
 - Modify: `index.html` (the `#qr` element, one `<script>` tag)
 - Modify: `css/10-chrome.css`
 - Modify: `js/app/61-relayout.js`
 
 **Interfaces:**
-- Consumes: `SHARE` from Task 4; `cellSize()` and `gridOrigin()` from `js/ui/40-dots.js`; the global `qrcodegen` from the vendored file.
+- Consumes: `SHARE` from Task 4; `cellSize()` and `gridOrigin()` from `js/ui/40-dots.js`; the global `qrcode` from the vendored file.
 - Produces: a working `renderQR()`, called by `startShare()`, `clearShare()` and on relayout.
 
 - [ ] **Step 1: Vendor the encoder**
 
-Download Nayuki's QR Code generator (MIT), JavaScript edition, into `js/vendor/qrcodegen.js`:
+> **Changed 30 Aug.** This step originally specified Nayuki's `qrcodegen`. That build no longer exists in a form this machine can get: the repo now ships TypeScript source only (`typescript-javascript/qrcodegen.ts`), the compiled JS lives in release archives, compiling it needs `tsc` from npm, and **npm is unreachable here** — the registry is Wix-internal and off-VPN. Nayuki is also not on npm, so no CDN carries it. jsdelivr and unpkg *are* reachable, so the encoder is Kazuhiko Arase's `qrcode-generator` instead — MIT, single file, classic script, no dependencies. The API in step 4 is written against it.
+
+Vendor it from jsdelivr:
 
 ```bash
 mkdir -p js/vendor
-curl -fsSL -o js/vendor/qrcodegen.js \
-  https://raw.githubusercontent.com/nayuki/QR-Code-generator/master/javascript/qrcodegen.js
+curl -fsSL -o js/vendor/qrcode-generator.js \
+  https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js
 ```
 
-Verify it is the classic-script build and exposes a global — it should contain `var qrcodegen` near the top and must **not** contain `export ` or `module.exports`:
+Verify it is the classic-script build and will expose a global:
 
 ```bash
-head -5 js/vendor/qrcodegen.js && grep -c "^var qrcodegen" js/vendor/qrcodegen.js && grep -c "export \|module.exports" js/vendor/qrcodegen.js
+head -16 js/vendor/qrcode-generator.js && grep -c "^var qrcode = function" js/vendor/qrcode-generator.js && wc -c js/vendor/qrcode-generator.js
 ```
 
-Expected: an MIT licence header, `1`, and `0`. If the third number is not `0`, the repo has moved to a module build — find the classic `qrcodegen-vX.Y.Z-javascript.js` release asset instead. **Do not edit the file to make it fit.** It is vendored, and vendored means byte-for-byte upstream so it can be re-fetched without re-doing work.
+Expected: the MIT header naming Kazuhiko Arase, `1`, and `56694` bytes.
+
+The file ends in a UMD wrapper that registers only for AMD and CommonJS. In a browser neither exists, so the top-level `var qrcode = function() {...}` becomes the global — which is exactly what a classic script needs. That has been confirmed by evaluating the file with `module`, `define` and `exports` all undefined and checking `typeof qrcode === 'function'`.
+
+**Do not edit the file.** Vendored means byte-for-byte upstream, so it can be re-fetched without re-doing work.
 
 - [ ] **Step 2: Add the markup and the script tag**
 
@@ -891,10 +897,10 @@ In `index.html`, beside the other corner chrome — immediately after the `<butt
 And with the other scripts, immediately **before** the `js/app/64-share.js` tag:
 
 ```html
-<script src="js/vendor/qrcodegen.js"></script>
+<script src="js/vendor/qrcode-generator.js"></script>
 ```
 
-Before, not after: `renderQR()` reads `qrcodegen` at draw time rather than at load, so order is not strictly forced — but a vendored library that something else depends on reads wrong sitting below its consumer.
+Before, not after: `renderQR()` reads `qrcode` at draw time rather than at load, so order is not strictly forced — but a vendored library that something else depends on reads wrong sitting below its consumer.
 
 - [ ] **Step 3: Style the panel**
 
@@ -997,10 +1003,15 @@ function renderQR(){
   }
 
   try{
-    const qr=qrcodegen.QrCode.encodeText(SHARE.url, qrcodegen.QrCode.Ecc.MEDIUM);
-    const n=qr.size, span=n+QR_QUIET*2, m=side/span;
+    /* typeNumber 0 lets the encoder pick the smallest version the text fits in;
+       'M' is medium error correction, which for a wixstatic URL of ~82 chars
+       lands on a 37x37 module code. isDark takes (row, col) — y first, not x. */
+    const qr=qrcode(0,'M');
+    qr.addData(SHARE.url);
+    qr.make();
+    const n=qr.getModuleCount(), span=n+QR_QUIET*2, m=side/span;
     let d='';
-    for(let y=0;y<n;y++) for(let x=0;x<n;x++) if(qr.getModule(x,y))
+    for(let y=0;y<n;y++) for(let x=0;x<n;x++) if(qr.isDark(y,x))
       d+='M'+((x+QR_QUIET)*m)+' '+((y+QR_QUIET)*m)+'h'+m+'v'+m+'h'+(-m)+'z';
     /* one path rather than n^2 rects: a version-5 code is over a thousand
        dark modules and a thousand elements is a thousand elements */
@@ -1057,7 +1068,7 @@ Finally, **scan it with a phone** and confirm it opens the poster. This is the o
 - [ ] **Step 7: Commit**
 
 ```bash
-git add js/vendor/qrcodegen.js js/app/64-share.js css/10-chrome.css index.html js/app/61-relayout.js
+git add js/vendor/qrcode-generator.js js/app/64-share.js css/10-chrome.css index.html js/app/61-relayout.js
 git commit -m "Draw the poster's address as a QR, on the grid
 
 The encoder is vendored; the drawing is ours, as one SVG path, because a QR

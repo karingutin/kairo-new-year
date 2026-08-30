@@ -19,6 +19,7 @@ function resetState(){
      redrawn on it — Reset is the second of the two ways out (see hideFinish) */
   posterDone=false; document.body.classList.remove('made');
   unstampRecord();                            // the record's numbers go live again
+  clearShare();                    // an abandoned poster's address must not outlive it
   clearTimeout(aimGuide.t); guideFrom=null; guideTo=[];   // no line left pointing
   lastMarkup=['',''];                                     // force a repaint
   card.classList.remove('open');

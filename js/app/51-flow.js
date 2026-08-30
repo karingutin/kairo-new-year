@@ -56,6 +56,10 @@ function showFinish(){
   document.body.classList.add('made');
   placeReset();                       // out of the way of the line coming down
   renderSnake(); renderStatus(); submit('complete');
+  /* The address for the QR. NOT AWAITED, and showFinish is not async: the
+     ending is not allowed to wait on a network round trip, and a failed
+     upload must cost the visitor nothing at all. See js/app/64-share.js. */
+  startShare();
 }
 
 /* THE SHEET LENGTHENING, armed for the length of the movement and no longer.
@@ -84,6 +88,7 @@ function hideFinish(){
      for here on purpose — the band is being covered again as the sheet comes
      back up, and repainting mid-transition would cut the movement. */
   unstampRecord();
+  clearShare();                       // that poster's address is not this one's
   /* land on the question the Create was pressed from rather than at the end of
      a flow with nothing left open, which would draw a trail and no panel */
   const back=ASKED.findIndex(q=>isCreateQ(q));
