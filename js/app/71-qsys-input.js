@@ -5,13 +5,15 @@
    --------------------------------------------------------------------- */
 let dialDrag=null, barDrag=null;
 qsys.addEventListener('click',e=>{
-  /* the way out, once the poster is made — three ways to keep it and one back */
+  /* the way out, once the poster is made — three ways to keep it, one way to
+     share it, and one back */
   const out=e.target.closest('.qout,.qback');
   if(out){
     const act=out.dataset.act;
     if(act==='png') exportPNG(out);
     else if(act==='jpg') exportJPG(out);
     else if(act==='svg') exportSVG();
+    else if(act==='qr') startShare();
     else hideFinish();
     return;
   }

@@ -176,6 +176,19 @@ answers, rolls, format — and a repeat press reuses the address it already has.
 
 ## 5. The QR
 
+> **Changed 30 Aug, during the build.** The QR was to appear on its own at the
+> Create press. It is now behind a button — `Generate QR`, standing in the way
+> out beside `Save as PNG / JPG / SVG` (Karin). Two things follow, both good.
+> **No upload happens unless someone asks for one**, so a visitor who only wants
+> the poster leaves nothing in the media library, which is the better default on
+> storage and on privacy both. And the placement problem dissolves: nothing
+> appears unbidden, so nothing can collide with the ending as it arrives.
+>
+> `OUT_ACTS` in `js/ui/41-snake.js` already drives that column and `OUT_ROWS`
+> derives from its length, so the figure extends itself. `Generate QR` is eleven
+> characters, exactly like `Save as PNG`, so the five-cell box still fits.
+> `showFinish()` no longer starts the upload; the press does.
+
 Encoding is vendored, drawing is ours.
 
 A single-file MIT encoder goes in `js/vendor/` — one script tag, no build, no
@@ -185,8 +198,22 @@ as SVG rects**, because a QR that Wix's library styles is a QR that ignores the
 `--cell` grid, and `CLAUDE.md` is not ambiguous about that: this is interface
 chrome, so its position and its size both land on grid lines.
 
-- the QR's box is a whole number of cells square, snapped against `gridOrigin()`
-  the way `placeChrome()` does it
+- **it is a pop-up, centred over the dimmed board**, and it took two wrong turns
+  to get there. It began in the gutter between the poster's right edge and the
+  screen edge, which works at 1440 and at 1280 and does not work at 1024: that
+  strip comes down to under five cells against the code's seven, and the QR ends
+  up lying on the artwork it is a link to. Dodging `#reset` inside that strip was
+  its own fight — reset is anchored to the sheet's foot and the gutter to the
+  screen, so the distance between them is not a fixed quantity and a gap tuned at
+  one size went negative at another. Centred, none of that exists: the same
+  thing at every window size, nothing to collide with (Karin, 30 Aug).
+- the box is still a whole number of cells square, snapped against `gridOrigin()`
+  the way `placeChrome()` does it — the largest square leaving two clear cells of
+  air on the shorter side, capped at ten cells and never under five, which is
+  where the modules stop being readable.
+- a scrim dims the board behind it. Pressing the scrim puts the code away, and so
+  does Escape. The address is not forgotten when it does — the memo keeps it, so
+  asking again brings the same code back with no second upload.
 - one module is a cell fraction — the box's cell count divided by the matrix
   width, which for a URL of this length wants roughly a 6×6 or 7×7 cell box
 - ink and paper are the poster's own two roles, not black and white

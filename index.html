@@ -105,6 +105,14 @@
   <div id="fmtMenu" role="menu" aria-label="Poster format"></div>
   <div id="status"></div>
   <button type="button" id="reset" aria-label="Reset all answers">Reset</button>
+  <!-- The pop-up's ground. A press elsewhere on it puts the code away; see
+       js/app/64-share.js. It is a sibling of #qr rather than its parent so the
+       code's own box can stay snapped to the grid independently of it. -->
+  <div id="qrScrim" aria-hidden="true"></div>
+  <!-- The finished poster's address, for a phone. Placed and sized entirely
+       from js/app/64-share.js, because like all the chrome it lands on grid
+       lines and the grid is a function of the viewport. -->
+  <div id="qr" aria-hidden="true"></div>
 
 </div>
 
@@ -157,6 +165,7 @@
 <script src="js/app/61-relayout.js"></script>
 <script src="js/app/62-hover-notes.js"></script>
 <script src="js/app/63-record.js"></script>
+<script src="js/vendor/qrcode-generator.js"></script>
 <script src="js/app/64-share.js"></script>
 <script src="js/app/70-collect.js"></script>
 <script src="js/app/71-qsys-input.js"></script>

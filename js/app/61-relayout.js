@@ -7,7 +7,7 @@ function relayout(){
   if(CONFIG.FORMAT_SWITCHER) syncFmtControl();
   computeDots();
   if(pinnedQ) placeCard();
-  renderDots(); renderStatus(); draw();
+  renderDots(); renderStatus(); renderQR(); draw();
 }
 
 /* DEV ONLY — jump straight to the last question (colour) so it can be tested

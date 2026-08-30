@@ -56,10 +56,6 @@ function showFinish(){
   document.body.classList.add('made');
   placeReset();                       // out of the way of the line coming down
   renderSnake(); renderStatus(); submit('complete');
-  /* The address for the QR. NOT AWAITED, and showFinish is not async: the
-     ending is not allowed to wait on a network round trip, and a failed
-     upload must cost the visitor nothing at all. See js/app/64-share.js. */
-  startShare();
 }
 
 /* THE SHEET LENGTHENING, armed for the length of the movement and no longer.

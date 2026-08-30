@@ -465,3 +465,59 @@
     body.arrive:not(.arrive-lit) #fmtMenu{visibility:visible}
   }
 
+/* ---------------------------------------------------------------------
+   The share QR. Everything about its position and its size is set from
+   js/app/64-share.js, because both have to land on grid lines and the grid
+   is a function of the viewport — there is no px value here that could be
+   right at two window sizes. What lives here is only what does not move:
+   how it arrives, and what it looks like while it has nothing to show.
+
+   THE SECOND PLACE THE FLIP IS NOT LITERAL (the first is --chrome-ink, and
+   for a related reason). body.made inverts the palette, and the QR lives
+   only inside body.made — so following --fg on --surface would draw every
+   code light-on-dark. Plenty of phone cameras read an inverted code and
+   plenty do not, and this is the one element on the page whose entire job is
+   to be read by a machine on the first try. So it holds the light tones as
+   literals: #141414 on #ECECEC, the same two values --fg and --surface carry
+   before the flip. It is a small bright square in a dark ending, and that is
+   the cost of it working.
+   --------------------------------------------------------------------- */
+#qr{
+  position:fixed;
+  display:none;
+  z-index:6;
+  opacity:0;
+  transition:opacity var(--flip) var(--eo);
+  pointer-events:auto;
+}
+#qr.on{ display:block; opacity:1; }
+#qr svg{ display:block; width:100%; height:100%; }
+
+/* Working and failed both show the box and no code. The failed state says so
+   quietly rather than in an error colour: a QR that did not arrive is not an
+   error the visitor can do anything about, and the ending is not the place to
+   shout about it. These two DO follow the flip — there is no scanner to
+   satisfy, so they sit in the ending's own palette like any other text. */
+#qr .msg{
+  font:500 calc(var(--cell) * 0.30)/1.35 var(--ui);
+  color:var(--dim);
+  padding:calc(var(--cell) * 0.2);
+}
+
+@media (prefers-reduced-motion: reduce){
+  #qr{ transition:none; }
+}
+
+/* The pop-up's ground: the board dimmed, so the code reads as the one thing
+   being shown rather than as a square that has landed on the poster. */
+#qrScrim{
+  position:fixed;
+  inset:0;
+  display:none;
+  z-index:5;
+  background:rgba(0,0,0,.62);
+  opacity:0;
+  transition:opacity var(--flip) var(--eo);
+}
+#qrScrim.on{ display:block; opacity:1; }
+@media (prefers-reduced-motion: reduce){ #qrScrim{ transition:none; } }

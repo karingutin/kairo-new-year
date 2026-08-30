@@ -458,15 +458,21 @@ const OUT_W=5;
 const OUT_ACTS=[{act:'png',  label:'Save as PNG'},
                 {act:'jpg',  label:'Save as JPG'},
                 {act:'svg',  label:'Save as SVG'},
+                /* the QR is a PRESS, not something that just appears at Create: it is
+                   the one action here that leaves the board and mints a public address
+                   for the poster, and an upload nobody asked for is an upload that
+                   should not happen. "Generate QR" is eleven characters, same as
+                   "Save as PNG" above, so the box needs nothing widened for it. */
+                {act:'qr',   label:'Generate QR'},
                 {act:'back', label:'Back'}];
-/* rows from the first box's top to the last one's foot: three clear rows
-   between four boxes, plus the boxes themselves */
+/* rows from the first box's top to the last one's foot: four clear rows
+   between five boxes, plus the boxes themselves */
 const OUT_ROWS=(OUT_ACTS.length-1)*2+1;
 function finishFigure(){
   const B=snakeBand();
   const F=snakeFigure(Math.max(0,ASKED.length-1));
   /* never off the bottom: on a short window the last question's panel can sit
-     low enough that four boxes below it would not fit, and then the run starts
+     low enough that five boxes below it would not fit, and then the run starts
      as far down as it can while keeping Back on the screen */
   const r=Math.min(F.panel.r, B.halfH-OUT_ROWS);
   return OUT_ACTS.map((o,n)=>({...o, box:{c:F.panel.c, r:r+n*2, w:OUT_W, h:1}}));
