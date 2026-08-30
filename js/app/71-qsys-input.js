@@ -5,18 +5,16 @@
    --------------------------------------------------------------------- */
 let dialDrag=null, barDrag=null;
 qsys.addEventListener('click',e=>{
-  /* the way out, once the poster is made — three ways to keep it, one way to
-     share it, and one back */
+  /* the way out, once the poster is made — Back, and only Back. The three
+     Save-as presses this handled, and the Generate-QR press that briefly
+     joined them, are gone: the QR now arrives on its own (see showFinish in
+     js/app/51-flow.js) and answers the same "how do I keep this" question
+     without a row of alternatives standing beside it.
+     .qout is kept in the selector even though nothing renders it any more —
+     narrowing to .qback alone would save nothing and would fail quietly if a
+     .qout ever came back. */
   const out=e.target.closest('.qout,.qback');
-  if(out){
-    const act=out.dataset.act;
-    if(act==='png') exportPNG(out);
-    else if(act==='jpg') exportJPG(out);
-    else if(act==='svg') exportSVG();
-    else if(act==='qr') startShare();
-    else hideFinish();
-    return;
-  }
+  if(out){ hideFinish(); return; }
   const save=e.target.closest('.qsave');
   if(save){
     /* THE TENTH PRESS DOES TWO THINGS, in this order: it banks the colourway

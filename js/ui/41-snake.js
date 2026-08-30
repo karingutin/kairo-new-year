@@ -441,41 +441,52 @@ const saveFS=q=>isCreateQ(q) ? 0.34 : 0.26;
 /* ---------------------------------------------------------------------
    THE WAY OUT, once the poster is made.
 
-   Four boxes standing on THE LAST QUESTION'S OWN CORNER — the column and the
+   THE COLUMN'S CORNER is THE LAST QUESTION'S OWN CORNER — the column and the
    row where the tenth panel's top-left sat, taken from snakeFigure itself
    rather than worked out again here, so the two can never disagree. That is
    the corner the eye is already on when Create is pressed: the way out
    arrives where the question left off, not back at the top of the run
    (Karin, 16 Aug — it started on question one's row and read as a jump).
 
-   Five cells by one, because "SAVE AS PNG" is eleven characters at the
-   Create button's own size (saveFS's 0.34) and a four-cell box crowds both
-   ends of it. One clear row between each, so four cells on the inverted
-   ground read as four separate presses rather than one block with three
-   words in it.
-   --------------------------------------------------------------------- */
+   NOT A POP-UP ANY MORE (Karin, 30 Aug: "the QR code should just sit where
+   the buttons used to be, not in a pop up anymore"). The modal existed
+   because the gutter beside the poster ran out of width at 1024 while three
+   Save-as boxes and a Generate-QR box still stood in it; now that column
+   holds nothing but the code and Back, so the code fits it the same way the
+   old boxes did and there is no width problem left to solve with a pop-up.
+   See qrFigure() below for the code's own box, and js/app/64-share.js for
+   where it draws from it. */
 const OUT_W=5;
-const OUT_ACTS=[{act:'png',  label:'Save as PNG'},
-                {act:'jpg',  label:'Save as JPG'},
-                {act:'svg',  label:'Save as SVG'},
-                /* the QR is a PRESS, not something that just appears at Create: it is
-                   the one action here that leaves the board and mints a public address
-                   for the poster, and an upload nobody asked for is an upload that
-                   should not happen. "Generate QR" is eleven characters, same as
-                   "Save as PNG" above, so the box needs nothing widened for it. */
-                {act:'qr',   label:'Generate QR'},
-                {act:'back', label:'Back'}];
-/* rows from the first box's top to the last one's foot: four clear rows
-   between five boxes, plus the boxes themselves */
-const OUT_ROWS=(OUT_ACTS.length-1)*2+1;
+const OUT_ACTS=[{act:'back', label:'Back'}];
+
+/* THE CODE'S OWN BOX, seven cells square, standing where the Save-as presses
+   used to and with Back a clear row beneath it. Seven rather than five: five
+   would match OUT_W exactly and look tidier, but a wixstatic URL encodes to a
+   37-module code and five cells puts a module near four pixels, which is the
+   wrong side of what a phone camera reads reliably. Seven keeps it near six,
+   and the panel this column hangs off is nine cells wide, so it still has the
+   room. */
+const QR_CELLS=7;
+function qrFigure(){
+  const B=snakeBand();
+  const F=snakeFigure(Math.max(0,ASKED.length-1));
+  return {c:F.panel.c, r:Math.min(F.panel.r, B.halfH-OUT_ROWS), w:QR_CELLS, h:QR_CELLS};
+}
+
+/* The code, one clear row, then Back. OUT_ACTS.length no longer drives this:
+   the run is not a stack of equal boxes any more, it is one square and one
+   link under it. */
+const OUT_ROWS=QR_CELLS+2;
 function finishFigure(){
   const B=snakeBand();
   const F=snakeFigure(Math.max(0,ASKED.length-1));
   /* never off the bottom: on a short window the last question's panel can sit
-     low enough that five boxes below it would not fit, and then the run starts
-     as far down as it can while keeping Back on the screen */
+     low enough that the code and Back beneath it would not both fit, and
+     then the run starts as far down as it can while keeping Back on the
+     screen — the SAME clamped row qrFigure() computes above, so the code and
+     the link under it can never disagree about where the column starts */
   const r=Math.min(F.panel.r, B.halfH-OUT_ROWS);
-  return OUT_ACTS.map((o,n)=>({...o, box:{c:F.panel.c, r:r+n*2, w:OUT_W, h:1}}));
+  return OUT_ACTS.map((o,n)=>({...o, box:{c:F.panel.c, r:r+QR_CELLS+1, w:OUT_W, h:1}}));
 }
 
 function snakeParts(i,j,sx,sy){

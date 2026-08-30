@@ -105,14 +105,17 @@
   <div id="fmtMenu" role="menu" aria-label="Poster format"></div>
   <div id="status"></div>
   <button type="button" id="reset" aria-label="Reset all answers">Reset</button>
-  <!-- The pop-up's ground. A press elsewhere on it puts the code away; see
-       js/app/64-share.js. It is a sibling of #qr rather than its parent so the
-       code's own box can stay snapped to the grid independently of it. -->
-  <div id="qrScrim" aria-hidden="true"></div>
   <!-- The finished poster's address, for a phone. Placed and sized entirely
        from js/app/64-share.js, because like all the chrome it lands on grid
        lines and the grid is a function of the viewport. -->
   <div id="qr" aria-hidden="true"></div>
+  <!-- "Generating…", standing one row above the code while it works. A
+       sibling of #qr rather than a child of it — #qr is exactly the seven
+       cells the code occupies, and text inside would either overflow that
+       box or shrink the code. Placed and sized from js/app/64-share.js for
+       the same reason as everything else here: it lands on grid lines and
+       the grid is a function of the viewport. -->
+  <div id="qrLabel" aria-hidden="true"></div>
 
 </div>
 

@@ -34,7 +34,10 @@ function closeCard(markDone){
    popup the old "Create Poster" button opened is gone with the button, and
    what happens instead is that the interface takes the questions away and
    inverts its own ground, so the only lit thing left on the board is the
-   poster and the three ways to keep it.
+   poster, Back, and — a beat later — the QR, which is now how the poster is
+   kept (Karin, 30 Aug: "let's get rid of all the buttons — only the QR
+   should show once the poster has been generated"; Back stays, because
+   without it the only way out of the ending is starting over).
 
    NOTHING ABOUT THE POSTER CHANGES HERE. Not the sheet, not the format, not
    a single layer — no redraw is even asked for. The making was finished the
@@ -56,6 +59,14 @@ function showFinish(){
   document.body.classList.add('made');
   placeReset();                       // out of the way of the line coming down
   renderSnake(); renderStatus(); submit('complete');
+  /* THE QR COMES BACK ON ITS OWN, and it waits for the board to turn over
+     first. The upload is ten seconds of work and nothing is gained by starting
+     it half a second sooner, whereas a pop-up that lands on the same frame as
+     the Create press buries the one moment this whole piece builds to — the
+     sheet lengthening and the ground going to its negative. So: the ending
+     arrives, and then the code does. Not awaited, and nothing here waits on it
+     (see js/app/64-share.js). */
+  setTimeout(startShare, FLIP_MS+120);
 }
 
 /* THE SHEET LENGTHENING, armed for the length of the movement and no longer.

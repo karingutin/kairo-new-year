@@ -1,8 +1,9 @@
 /* =====================================================================
    TEMPORARY — Karin's own colour pickers, while she designs the next pass
    of the landing screen. NOT for visitors: sits plainly over the interface
-   rather than behind any trigger, exactly as asked (27 Aug) — no secrecy
-   attempted, just meant to be deleted once the design settles.
+   once loaded (27 Aug), but now gated behind ?dev (30 Aug, see the guard
+   just below) so a plain visit never loads it at all — no secrecy attempted
+   beyond that, just meant to be deleted once the design settles.
 
    Three independent controls:
      Grid   --gridline-dev on :root, the background grid squares. Session-only
@@ -22,6 +23,13 @@
    js/app/50-landing.js.
    ===================================================================== */
 (function(){
+  /* BEHIND A FLAG, for exactly the reason ?skip is (see js/app/72-boot.js): a
+     switch in the source is one someone forgets to turn back off before
+     sharing, and this one would put the working tools in front of every
+     visitor. A query string cannot travel by accident.
+       https://<the site>/?dev                                              */
+  if(!/(^|[?&])dev(=|&|$)/.test(location.search)) return;
+
   const SWATCHES=(typeof BANK_COLORS!=='undefined' && BANK_COLORS.length)
     ? BANK_COLORS
     : ['#FF710B','#0C995A','#8ED316','#A90F3C','#FF4FFC','#F9C816'];

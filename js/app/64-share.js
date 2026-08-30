@@ -17,6 +17,13 @@
 
 const SHARE = { status:'idle', url:null, sig:null };
 
+/* The shimmer's own clock, kept beside SHARE for the same reason SHARE_MEMO
+   is: one module-level binding, so there is exactly one place that can be
+   holding a live timer at any moment. renderQR() is responsible for both
+   starting it (once, in the 'working' branch) and clearing it (on every
+   other path out) — see the top of that function. */
+let qrPulse=null;
+
 /* The last upload that actually landed, kept BEYOND clearShare. Backing out of
    the ending puts the panel away; it does not make the poster un-made, and the
    address Wix already minted for it is still good. Without this the guard below
@@ -51,36 +58,71 @@ async function startShare(){
   renderQR();
 
   try{
-    const blob=await rasterBlob('png');
+    /* MEASURED end to end on the live site before touching any of this
+       (Karin, 30 Aug, a 3.3MB poster): rasterise 1214ms (15%), mint 942ms
+       (12%), PUT 4588ms (57% — the real cost), settle-probe 1297ms (16%).
+       The three changes below all attack the upload, not the code — the QR
+       encode itself never registered, it is a 37x37 matrix.
 
-    const r=await fetch('/api/poster-upload',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({size:blob.size})
-    });
-    if(!r.ok) throw new Error('mint '+r.status);
-    const {uploadUrl}=await r.json();
+       MINT WHILE RASTERISING, NOT AFTER (~0.9s). The two were only ever in
+       series out of habit: mint() needs nothing from the rasterise but a
+       byte count, and the worker's own guard band is 1KB..25MB — every real
+       poster clears it by a wide margin, so the exact figure sent here does
+       nothing but satisfy that check. A round number safely inside the band
+       stands in for it, and the two calls run at once instead of one after
+       the other. */
+    const [blob, minted] = await Promise.all([
+      rasterBlob('jpg'),
+      fetch('/api/poster-upload',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({size:1048576})
+      }).then(r=>r.ok?r.json():Promise.reject(new Error('mint '+r.status)))
+    ]);
+    const uploadUrl = minted && minted.uploadUrl;
     if(!uploadUrl) throw new Error('no uploadUrl');
 
     /* PUT, not POST — the signed URL takes a PUT with the bytes as the body.
-       The poster goes straight to Wix from here; the worker never sees it. */
+       The poster goes straight to Wix from here; the worker never sees it.
+
+       JPEG, NOT PNG (most of the remaining 4.6s). The sheet has no
+       transparency to lose — buildSVG's first mark is an opaque ground rect
+       the full size of the sheet — which is exactly why exportRaster was
+       always happy to offer JPEG downstream. On an earlier poster this was
+       750KB against the PNG's 1.2MB, and the PUT is by far the largest slice
+       of the whole eight seconds, so a smaller file here is the single
+       biggest lever in this function. */
     const up=await fetch(uploadUrl,{
-      method:'PUT', headers:{'Content-Type':'image/png'}, body:blob
+      method:'PUT', headers:{'Content-Type':'image/jpeg'}, body:blob
     });
     if(!up.ok) throw new Error('put '+up.status);
     const out=await up.json();
     const url=out && out.file && out.file.url;
     if(!url) throw new Error('no file url');
 
-    /* Wix is explicit that a successful upload response does not mean the file
-       is readable yet, so the address is not trusted until it actually loads.
-       A QR that resolves to nothing is worse than no QR. */
-    await settle(url);
+    /* STOP WAITING WHEN WIX HAS ALREADY SAID SO (~1.3s). Wix is explicit
+       that a successful upload response does not always mean the file is
+       readable yet — but the PUT response also carries its own
+       operationStatus, and on every upload checked today (Karin, 30 Aug) it
+       already comes back READY. Anything other than READY is unproven, so
+       that path keeps the old behaviour exactly: wait for settle() before
+       trusting the address at all. READY skips the wait — the probe below
+       still runs, but only as an unawaited background check, because a code
+       that is already on screen, and possibly already scanned, must not go
+       back to being no code over a probe that came back slow or failed
+       after the fact. */
+    const ready = out && out.file && out.file.operationStatus === 'READY';
+    if(!ready) await settle(url);
 
     /* the session moved on while we were away — that poster is not this one */
     if(SHARE.sig!==sig) return;
     SHARE.status='ready'; SHARE.url=url;
     SHARE_MEMO={ sig:sig, url:url };
     console.log('[kairo] poster at', url);
+
+    if(ready){
+      /* not awaited, and its result decides nothing — see the comment above */
+      settle(url).catch(e=>console.warn('[kairo] late settle check failed:', e && e.message));
+    }
   }catch(e){
     if(SHARE.sig!==sig) return;
     SHARE.status='failed'; SHARE.url=null;
@@ -129,52 +171,136 @@ function clearShare(){
    --------------------------------------------------------------------- */
 const QR_QUIET=4;          // modules of quiet zone each side — 4 is the spec's minimum
 
-/* THE CODE AND ITS GROUND COME ON AND GO OFF TOGETHER — one helper rather than
-   the pair of classList calls repeated at every branch below, because a
-   pop-up whose scrim can fall out of step with its own panel is worse than no
-   scrim at all. */
-function showQR(on){
-  const el=document.getElementById('qr');
-  if(el) el.classList.toggle('on', on);
-  const scrim=document.getElementById('qrScrim');
-  if(scrim) scrim.classList.toggle('on', on);
+/* ---------------------------------------------------------------------
+   THE WAIT, ASSEMBLING ITSELF.
+
+   The wait behind 'working' is real — rasterise, mint, PUT a megabyte-plus
+   PNG, then poll until Wix reports the file readable — commonly eight to
+   fourteen seconds. A motionless '…' held for that long reads as broken, not
+   as busy. What replaces it is the same box the finished code will fill,
+   already showing something that looks like a code arriving.
+
+   THE FINDER PATTERNS ARE REAL AND THE DATA IS NOT, and that has to be said
+   plainly here so nobody later mistakes this for a partially-decoded code
+   and tries to scan it. The three finder patterns — the QR's corner eyes,
+   top-left, top-right, bottom-left — are drawn correctly and statically: a
+   7x7 ring with a solid 3x3 centre, at the exact corners a real code always
+   puts them, with QR_QUIET's own quiet zone already applied. They are the one
+   part of a QR that never changes shape, so they belong on screen from the
+   very first frame and are what makes the box read instantly as "a code is
+   coming" rather than a blank square. Everything else in the box is a random
+   scatter with no meaning at all, reshuffled on a timer so it shimmers like
+   the code is still resolving.
+
+   FIXED AT 37 MODULES — the same count the real encode actually lands on for
+   a wixstatic URL of this length (see the comment in the ready branch below)
+   — so the shimmer's modules are already the size the finished code's will
+   be, and nothing changes scale the instant the real one replaces it.
+
+   ONE PATH, not N^2 rects, exactly the technique the ready branch below
+   uses — a version-5-sized grid drawn as individual elements is the same
+   performance problem here as it is there. */
+const QR_PULSE_N=37;
+const QR_PULSE_MS=110;   // fast enough to read as resolving; any quicker and it flickers rather than shimmers
+
+function qrPulseMarkup(side){
+  const N=QR_PULSE_N, span=N+QR_QUIET*2, m=side/span;
+  /* each finder's own top-left module, in the 0..N-1 grid, before the quiet
+     zone offset below adds QR_QUIET to every coordinate */
+  const FINDERS=[[0,0],[N-7,0],[0,N-7]];
+  let d='';
+  for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+    const f=FINDERS.find(b=>x>=b[0]&&x<b[0]+7&&y>=b[1]&&y<b[1]+7);
+    let dark;
+    if(f){
+      /* the standard finder shape: dark on the outer ring and the solid
+         3x3 centre, light in the ring between — geometrically exact no
+         matter what the scatter around it is doing this tick */
+      const lx=x-f[0], ly=y-f[1];
+      dark=(lx===0||lx===6||ly===0||ly===6||(lx>=2&&lx<=4&&ly>=2&&ly<=4));
+    } else {
+      /* the data area: no meaning, a third-to-a-half scatter, different
+         every call — this is the part that shimmers */
+      dark=Math.random()<0.4;
+    }
+    if(dark) d+='M'+((x+QR_QUIET)*m)+' '+((y+QR_QUIET)*m)+'h'+m+'v'+m+'h'+(-m)+'z';
+  }
+  return '<svg viewBox="0 0 '+side+' '+side+'" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">'
+    + '<rect width="'+side+'" height="'+side+'" fill="#ECECEC"/>'
+    + '<path d="'+d+'" fill="#141414"/></svg>';
 }
 
 function renderQR(){
   const el=document.getElementById('qr');
   if(!el) return;
+  const lab=document.getElementById('qrLabel');
+
+  /* THE PULSE NEVER OUTLIVES ITS OWN CALL. renderQR() runs on every relayout
+     — every resize, every format change — as well as on every SHARE
+     transition, so a timer started once and left running would multiply:
+     one extra interval per resize, all of them reshuffling the same box,
+     none of them the one anyone is looking at. Cleared here, unconditionally,
+     before any branch below runs, so the only way a timer exists afterwards
+     is the 'working' branch choosing to start exactly one fresh one. Every
+     other path out — idle, ready, failed, a failed encode, and clearShare()
+     (which is just SHARE.status='idle' followed by this same call) — leaves
+     it cleared.
+
+     THE LABEL IS HIDDEN HERE TOO, for the same reason and beside the same
+     clear: 'Generating…' belongs to the working state alone, so it is turned
+     off unconditionally before any branch below runs, and only the working
+     branch turns it back on. One place does the hiding, so it cannot be left
+     standing over the finished code, the failed message, or nothing at all. */
+  if(qrPulse){ clearInterval(qrPulse); qrPulse=null; }
+  if(lab) lab.classList.remove('on');
 
   /* it belongs to the ending and to nothing else */
-  if(!posterDone || SHARE.status==='idle'){ showQR(false); el.innerHTML=''; return; }
+  if(!posterDone || SHARE.status==='idle'){ el.classList.remove('on'); el.innerHTML=''; return; }
 
-  const cell=cellSize(), o=gridOrigin();
-  const vw=window.innerWidth, vh=window.innerHeight;
-  const phaseX=((o.x%cell)+cell)%cell;      // first vertical line at or after x=0
-  const phaseY=((o.y%cell)+cell)%cell;      // first horizontal line at or after y=0
-
-  /* A POP-UP, not a panel in the gutter. It was in the strip beside the poster
-     and that strip is not always there: at 1024 wide it comes down to under
-     five cells against this box's seven, and the code ended up lying on the
-     artwork it is a link to. Centred, it is the same thing at every window
-     size, and it no longer has to dodge reset (Karin, 30 Aug).
-
-     Sized in whole cells and snapped to the grid like every other piece of
-     chrome, and it takes the largest square that leaves two clear cells of air
-     on the shorter side — ten cells at a normal window, less on a small one,
-     never under five, which is where the modules would stop being readable. */
-  const room=Math.floor((Math.min(vw,vh)-4*cell)/cell);
-  const cells=Math.max(5,Math.min(10,room));
-  const side=cells*cell;
-  const left=phaseX+Math.round(((vw-side)/2-phaseX)/cell)*cell;
-  const top =phaseY+Math.round(((vh-side)/2-phaseY)/cell)*cell;
-  el.style.left=left+'px';
-  el.style.top =top+'px';
+  /* NOT A POP-UP ANY MORE (Karin, 30 Aug). It became one because the gutter
+     beside the poster ran out of width at 1024, and that argument died with
+     the Save-as buttons: the column they stood in is empty now, the code
+     stands in it, and Back sits under the code. The box comes from
+     qrFigure() rather than being worked out again here, so the code and the
+     link below it can never disagree about where the column is. */
+  const cell=cellSize();
+  const b=cellBox(qrFigure());
+  const side=b.w;
+  el.style.left=b.left+'px';
+  el.style.top=b.top+'px';
   el.style.width=side+'px';
   el.style.height=side+'px';
 
-  if(SHARE.status!=='ready' || !SHARE.url){
-    el.innerHTML='<div class="msg">'+(SHARE.status==='failed'?'no link':'…')+'</div>';
-    showQR(true);
+  if(SHARE.status==='working'){
+    el.innerHTML=qrPulseMarkup(side);
+    el.classList.add('on');
+    /* reduced motion draws the one frame above and stops there — no interval,
+       because there is nothing here to animate towards under that setting */
+    if(!(reduceMotion && reduceMotion())){
+      qrPulse=setInterval(()=>{ el.innerHTML=qrPulseMarkup(side); }, QR_PULSE_MS);
+    }
+    /* THE LABEL, one row above the code and as wide as it — the row above
+       qrFigure()'s box is genuinely clear: renderFinish() (js/ui/44-snake-draw.js)
+       replaces #qsys with nothing but Back's own box, placed a clear row
+       BELOW the code (see finishFigure() in js/ui/41-snake.js), so there is
+       nothing else drawn above it to collide with. b.top-cell is still a
+       grid line because b.top is one and cell is a whole cell, so the
+       assignment stays unrounded like everything else here — no snapping
+       of a value that is already on the grid by construction. */
+    if(lab){
+      lab.textContent='Generating…';
+      lab.style.left=b.left+'px';
+      lab.style.top=(b.top-cell)+'px';
+      lab.style.width=side+'px';
+      lab.style.height=cell+'px';
+      lab.classList.add('on');
+    }
+    return;
+  }
+
+  if(SHARE.status==='failed' || !SHARE.url){
+    el.innerHTML='<div class="msg">no link</div>';
+    el.classList.add('on');
     return;
   }
 
@@ -198,21 +324,11 @@ function renderQR(){
       '<svg viewBox="0 0 '+side+' '+side+'" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">'
       + '<rect width="'+side+'" height="'+side+'" fill="#ECECEC"/>'
       + '<path d="'+d+'" fill="#141414"/></svg>';
-    showQR(true);
+    el.classList.add('on');
   }catch(e){
     /* an encode that fails is a failed share like any other */
     el.innerHTML='<div class="msg">no link</div>';
-    showQR(true);
+    el.classList.add('on');
     console.warn('[kairo] qr encode failed:', e && e.message);
   }
 }
-
-/* TWO WAYS OUT, and both are the same way out: the code is a thing being shown,
-   not a state the board is in. Pressing the ground behind it puts it away, and
-   so does Escape. The address itself is not forgotten — SHARE_MEMO keeps it, so
-   pressing Generate QR again brings the same code straight back with no second
-   upload. */
-document.getElementById('qrScrim').addEventListener('click',clearShare);
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape' && SHARE.status!=='idle') clearShare();
-});

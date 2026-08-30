@@ -485,10 +485,16 @@
 #qr{
   position:fixed;
   display:none;
-  z-index:6;
+  /* Same layer as #qsys (z-index:5 in css/30-questions.css), not above a
+     scrim any more — there is no scrim. The code stands in the column the
+     Save-as boxes used to, so it stands at the same height they did. */
+  z-index:5;
   opacity:0;
   transition:opacity var(--flip) var(--eo);
-  pointer-events:auto;
+  /* Not clickable: a pop-up needed a press on the code itself to NOT dismiss
+     it; a panel that sits in the layout and leaves when the ending leaves
+     has nothing left to guard against. */
+  pointer-events:none;
 }
 #qr.on{ display:block; opacity:1; }
 #qr svg{ display:block; width:100%; height:100%; }
@@ -508,16 +514,34 @@
   #qr{ transition:none; }
 }
 
-/* The pop-up's ground: the board dimmed, so the code reads as the one thing
-   being shown rather than as a square that has landed on the poster. */
-#qrScrim{
+/* "Generating…", standing in the clear row above the code while
+   SHARE.status is 'working' (Karin, 30 Aug: "let's also add a
+   'Generating...' text above it while it does that so it's clear"). One
+   ellipsis glyph, not three full stops — #qr .msg above already uses the
+   single glyph and the type in this piece is set carefully; three would be
+   the odd one out.
+
+   IT IS NOT PART OF THE CODE, so unlike #qr it follows body.made's inverted
+   palette like every other piece of text in the ending, rather than the
+   #ECECEC/#141414 literals that exist only so a camera can read the code.
+   And it should read as belonging with Back — the only other text standing
+   in this column — so its type is .qback's own (css/30-questions.css)
+   wholesale: size, letter-spacing, case, colour. Not invented fresh. */
+#qrLabel{
   position:fixed;
-  inset:0;
   display:none;
   z-index:5;
-  background:rgba(0,0,0,.62);
   opacity:0;
   transition:opacity var(--flip) var(--eo);
+  pointer-events:none;          /* a label, nothing presses it */
+  align-items:center;
+  font-family:var(--mono);
+  font-size:9.5px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--chrome-ink);
 }
-#qrScrim.on{ display:block; opacity:1; }
-@media (prefers-reduced-motion: reduce){ #qrScrim{ transition:none; } }
+#qrLabel.on{ display:flex; opacity:1; }
+@media (prefers-reduced-motion: reduce){
+  #qrLabel{ transition:none; }
+}

@@ -1,8 +1,9 @@
 /* =====================================================================
    TEMPORARY — Karin's own size/position controls for two poster layers:
    the radial block (febdays, question 2) and the node/spider (alarms,
-   question 3). NOT for visitors: sits plainly over the interface, same as
-   the colour panel in 79-dev-colors.js.
+   question 3). NOT for visitors: sits plainly over the interface once
+   loaded, same as the colour panel in 79-dev-colors.js, but gated behind
+   ?dev (30 Aug, see the guard just below) so a plain visit never loads it.
 
    Two ways to change each layer's Vertical value, both writing to the same
    POSTER_DEV_KEY in localStorage (see posterDevOverrides() in js/00-core.js,
@@ -21,6 +22,13 @@
    js/poster/26b-radial-block.js.
    ===================================================================== */
 (function(){
+  /* BEHIND A FLAG, for exactly the reason ?skip is (see js/app/72-boot.js): a
+     switch in the source is one someone forgets to turn back off before
+     sharing, and this one would put the working tools in front of every
+     visitor. A query string cannot travel by accident.
+       https://<the site>/?dev                                              */
+  if(!/(^|[?&])dev(=|&|$)/.test(location.search)) return;
+
   const panel=document.createElement('div');
   panel.id='devPosterPanel';
   panel.style.cssText='position:fixed;right:12px;bottom:12px;z-index:99999;'

@@ -212,6 +212,16 @@ async function exportRaster(kind,btn){
   catch(e){ exportSVG(); }
   finally{ if(btn){ btn.textContent=old; btn.disabled=false; } }
 }
+/* NOTHING ON SCREEN CALLS THESE ANY MORE. The way-out column that used to
+   hold "Save as PNG" and "Save as JPG" collapsed to Back alone once the QR
+   became how a visitor takes the poster home instead (see js/app/51-flow.js
+   and js/ui/41-snake.js). Kept anyway, on purpose, the same way
+   downloadResponses/copyPayload already sit unreachable-from-the-board in
+   this file: genuinely useful to Karin from the console while she is
+   designing, not dead weight carried for nothing. rasterBlob, just above, is
+   the one piece of this that must not rot — the share path calls it
+   directly — and exportSVG, exportRaster's own fallback, is untouched by any
+   of this. */
 const exportPNG=btn=>exportRaster('png',btn);
 const exportJPG=btn=>exportRaster('jpg',btn);
 
