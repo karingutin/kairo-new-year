@@ -160,8 +160,12 @@
      aperture's hour marks. They are ON from the start in grey, so the lattice
      already frames every letter; hovering a cell turns its four dark as the
      star's rays sweep in and settle onto them. */
+  /* --kmark-color: TEMPORARY (Karin, 27 Aug) — a per-letter override set as an
+     inline custom property on that letter's own .kt (see buildHeroLogo and
+     the picker in js/app/79-dev-colors.js); falls through to the original
+     grey when unset. */
   .kmark{position:absolute;width:calc(var(--cell)*.17);height:calc(var(--cell)*.17);
-    background:#C2C2BE;transition:background .14s var(--ease);pointer-events:none}
+    background:var(--kmark-color,#C2C2BE);transition:background .14s var(--ease);pointer-events:none}
   .kmark.tl{left:calc(var(--cell)*-.085);top:calc(var(--cell)*-.085)}
   .kmark.tr{right:calc(var(--cell)*-.085);top:calc(var(--cell)*-.085)}
   .kmark.bl{left:calc(var(--cell)*-.085);bottom:calc(var(--cell)*-.085)}
@@ -170,6 +174,12 @@
      load and must light each cell EXACTLY as the pointer does, so it sets this
      rather than carrying a second set of styles that could drift from these
      ones. Every rule below names both. */
+  /* R and O sit diagonally adjacent and share one corner point exactly — the
+     later element in DOM order (O) painted over it by default, so that
+     shared square always showed O's colour. Karin wants it to read as R's
+     (27 Aug); a small resting z-index on R alone flips just that one pair
+     without touching how any other tile's corners stack. */
+  .klogo .kt[data-letter="R"]{z-index:2}
   .klogo .kt:hover,.klogo .kt.hot{z-index:5}
   .klogo .kt:hover .kmark,.klogo .kt.hot .kmark,
   .kstart:hover .kmark,.kstart.hot .kmark{background:var(--fg)}

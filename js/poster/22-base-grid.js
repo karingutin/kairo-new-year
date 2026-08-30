@@ -1,19 +1,16 @@
 /* =====================================================================
    THE BASE GRID — the bottom layer, drawn straight onto the ground. shape and
-   density are bank questions 1 and 2 now (they used to be asked on the landing
-   screens, before the board was ever shown), so the grid is EARNED the way
-   every other layer is: nothing is drawn until the shape question is chosen,
-   and density then sets how far the chosen grid runs.
+   density are hidden bank entries in the Rosh Hashanah edition (see their
+   `hidden:true` in js/10-bank.js) — never asked, so the grid is a fixed
+   medium circle grid from the first draw rather than something earned over
+   two questions. ans('shape')/ans('density') still resolve through their
+   entries' `default` (circle / enough), which is what this file reads.
    The arrival dial (the old Q3, whose lateness broke every line into dashes)
    was removed with its question; the grid's lines are plain solid now.
    ===================================================================== */
 const DENSITY_COLS  ={little:10, enough:16, plenty:20};   // (unused) square: column count
 const DENSITY_RINGS ={little:8,  enough:16, plenty:22};   // circles: ring count
 const DENSITY_SPOKES={little:12, enough:20, plenty:24};   // spokes: how many rays — the density question's three levels
-/* The sparse GROUND the grid arrives at before the density question is answered.
-   Deliberately sparser than every density level, so answering density can only
-   ADD lines — even "too little" is denser than this default. */
-const DEFAULT_RINGS=4, DEFAULT_SPOKES=8;
 /* True squares, not rectangles: cell size comes from the WIDTH only and the
    same size is reused for the vertical axis, so cells stay square regardless
    of the poster's 7:10 aspect. The bottom row is left to clip rather than
@@ -68,12 +65,9 @@ function baseGridLayer(C,B){
   const style={strokeWidth:1, dasharray:null};   // solid — the arrival dial went with its question
   /* circle shape = concentric circles ONLY; the other shape = a ray/spokes grid.
      Both replace the old square lattice, which clashed with the interface grid.
-     Density reads its standing default until its own question is chosen, so the
-     grid that shape puts down never has to guess a count. */
-  /* before the density question is answered the grid stands at the sparse
-     DEFAULT; once it is answered it jumps to the chosen (always denser) level */
-  const dChosen=isChosen('density');
+     Fixed at the default level (medium/"enough") from the first draw — there
+     is no longer a sparse standing state to jump from. */
   if(ans('shape')==='circle')
-    return polarBaseGrid(dChosen ? (DENSITY_RINGS[ans('density')]||DENSITY_RINGS.enough) : DEFAULT_RINGS, style, B, C.grid);
-  return spokesBaseGrid(dChosen ? (DENSITY_SPOKES[ans('density')]||DENSITY_SPOKES.enough) : DEFAULT_SPOKES, style, B, C.grid);
+    return polarBaseGrid(DENSITY_RINGS[ans('density')]||DENSITY_RINGS.enough, style, B, C.grid);
+  return spokesBaseGrid(DENSITY_SPOKES[ans('density')]||DENSITY_SPOKES.enough, style, B, C.grid);
 }

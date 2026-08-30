@@ -69,8 +69,8 @@ const REC_SHAPE   ={square:'TIME MOVES ON WITHOUT YOU', circle:'TIME CARRIES YOU
 const REC_DENSITY ={little:'TOO LITTLE TIME', enough:'ENOUGH TIME', plenty:'PLENTY OF TIME'};
 const REC_MEMORIES={'1':'1 CORE MEMORY', '2':'2 CORE MEMORIES', '3':'3 CORE MEMORIES',
                     '4+':'4+ CORE MEMORIES'};
-const REC_SAYING  ={Trust:'TIME IS TRUST', Worry:'TIME IS WORRY',
-                    Regret:'TIME IS REGRET', Presence:'TIME IS PRESENCE'};
+const REC_SAYING  ={Courage:'WISHING FOR COURAGE', Growth:'WISHING FOR GROWTH',
+                    Renewal:'WISHING FOR RENEWAL', Clarity:'WISHING FOR CLARITY'};
 /* the tail binaries, written now so raising QUESTIONS_PER_SESSION needs no
    copy work later — none of these is asked at ten questions a session */
 const REC_BIN={
@@ -81,14 +81,12 @@ const REC_BIN={
   novelty:{repeats:'MORE REPEATS THAN NEW', new:'MORE NEW THAN REPEATS'},
   supply: {scarce:'RUNNING OUT OF TIME', plenty:'MORE TIME THAN NEEDED'}
 };
-/* The month's two temperatures come from MONTH_TEMPS, the same table the
-   silhouette is set from — so the figures on the foot and the shape above them
-   are the one reading, not two. */
+/* Rosh Hashanah edition (Karin, 30 Aug): 'month' stopped being a temperature
+   reading a while back — its answer word IS the poster's own typography now
+   (see monthLayer in js/poster/20-month.js), so the foot just names it. */
 function recMonthItem(){
-  const m=ans('month'), t=MONTH_TEMPS[m]||'';
-  const hit=/^(\d+)c(\d+)f$/.exec(t);
-  if(!hit) return '';
-  return 'FAVOURITE WEATHER '+hit[1]+'C OR '+hit[2]+'F IN '+String(m).toUpperCase();
+  const m=ans('month');
+  return m ? 'MOST ENERGY WENT TO '+String(m).toUpperCase() : '';
 }
 /* Per question, and only the ones whose answer says something the sheet does
    not already say. THE COLOURWAY IS NOT HERE, deliberately: the poster IS the
@@ -97,21 +95,30 @@ const REC_ITEM={
   shape:    ()=>REC_SHAPE[ans('shape')]||'',
   density:  ()=>REC_DENSITY[ans('density')]||'',
   month:    recMonthItem,
-  febdays:  ()=>String(beadCountFromAnswers())+' DAYS IN BIRTH MONTH',
+  /* Rosh Hashanah edition (Karin, 30 Aug): 'febdays' is a wish for the new
+     year now, not a birth-month day-count (see js/10-bank.js). */
+  febdays:  ()=>{ const v=ans('febdays'); return v ? 'WISHING FOR '+String(v).toUpperCase() : ''; },
+  /* 'alarms' stopped being a snooze count a while back — it's new people
+     the year brought. */
   alarms:   ()=>{ const n=rayCountFromAnswers();
-                  return n===0 ? 'NO SNOOZE IN THE MORNING'
-                       : n===1 ? '1 SNOOZE EVERY MORNING'
-                               : n+' SNOOZES EVERY MORNING'; },
-  decades:  ()=>{ const d=Math.max(1,Math.round(Math.round(ans('decades'))/10));
-                  return d===1 ? '1 DECADE AHEAD' : d+' DECADES AHEAD'; },
+                  return n===0 ? 'NO NEW PEOPLE THIS YEAR'
+                       : n===1 ? '1 NEW PERSON THIS YEAR'
+                               : n+' NEW PEOPLE THIS YEAR'; },
+  /* 'decades' stopped counting years of life left — it's a wish for next
+     year, Calm at one end and Overflowing at the other (same bands as the
+     question's own display(), so the panel and the foot never disagree). */
+  decades:  ()=>{ const v=ans('decades');
+                  return v>55 ? 'WISHING FOR AN OVERFLOWING YEAR'
+                       : v<45 ? 'WISHING FOR A CALM YEAR'
+                              : 'WISHING FOR A YEAR EVENLY BALANCED'; },
   vacations:()=>REC_MEMORIES[String(ans('vacations'))]||'',
+  /* 'sixweek' stopped being week-vs-weekend a while back — it looks back at
+     how the year actually turned out, Predictable to Surprising (same
+     bands as the question's own display()). */
   sixweek:  ()=>{ const raw=ans('sixweek'), v=Number.isFinite(+raw)?+raw:50;
-                  /* the same three bands the question's own display() reads, so
-                     the panel and the foot can never disagree about which side
-                     of the week someone came down on */
-                  return v<45 ? 'WEEK SUPERIORITY'
-                       : v<=55 ? 'WEEK AND WEEKEND EVEN'
-                               : 'WEEKEND SUPERIORITY'; },
+                  return v<45 ? 'A PREDICTABLE YEAR'
+                       : v<=55 ? 'PREDICTABLE AND SURPRISING EVEN'
+                               : 'A SURPRISING YEAR'; },
   saying:   ()=>REC_SAYING[ans('saying')]||''
 };
 

@@ -201,8 +201,11 @@ function barLayer(B,C){
      is scaled to the screen and tilts with the pointer, so a hairline of paper
      could still open along the foot at some sizes — the bleed makes the band
      meet the edge whatever the rasteriser does with the last fraction of a
-     pixel. */
-  const bleed=6;
+     pixel. 6 wasn't enough (Karin, 30 Aug: still a visible sliver at her
+     window size) — a more generous margin costs nothing, since it only ever
+     bleeds into the reserved record-row band beneath, which stays clipped
+     from view until the poster is actually made. */
+  const bleed=24;
   let blue='', red='', clip='';
   for(let r=0;r<rows;r++){
     const cellY=y0+bandH-(r+1)*cellH;      // r=0 is the bottom row, stacking up

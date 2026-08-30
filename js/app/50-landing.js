@@ -118,18 +118,44 @@ function heroCellHover(el){
 /* Builds the mark's DOM only — five letter cells and START — with no sizes yet.
    layoutHeroLogo() measures and places everything, so the same nodes can be
    re-laid-out on resize. */
+/* TEMPORARY (Karin, 27 Aug): each letter's corner marks (.kmark) can carry a
+   dev-picked colour, persisted in localStorage under KMARK_DEV_KEY — see the
+   picker UI in js/app/79-dev-colors.js, which writes the same key and can
+   restyle a live tile directly. Read here too so a reload (or a landing
+   re-render) keeps the choice without the picker needing to run first.
+   Delete this block, the --kmark-color read in css/20-aperture.css's
+   .kmark rule, and 79-dev-colors.js together to remove the whole feature. */
+const KMARK_DEV_KEY='kairoKmarkDev';
+/* The corner-mark palette Karin settled on (picked in the dev panel, 30 Aug):
+   K bordeaux, A light green, I pink, R orange, O yellow, START dark green.
+   Real defaults now, not a dev-only override — the dev panel still layers its
+   own picks on top of these when localStorage has them. */
+const KMARK_DEFAULTS={K:'#A90F3C',A:'#8ED316',I:'#FF4FFC',R:'#FF710B',O:'#F9C816',START:'#0C995A'};
+function kmarkDevColors(){
+  try{ return JSON.parse(localStorage.getItem(KMARK_DEV_KEY)||'{}'); }
+  catch(e){ return {}; }
+}
 function buildHeroLogo(){
   const box=document.createElement('div'); box.className='klogo';
   box.setAttribute('role','img'); box.setAttribute('aria-label','KAIRO');
+  const dev=kmarkDevColors();
   const tiles=LOGO_LETTERS.map(ch=>{
-    const t=document.createElement('div'); t.className='kt';
+    const t=document.createElement('div'); t.className='kt'; t.dataset.letter=ch;
+    t.style.setProperty('--kmark-color',dev[ch]||KMARK_DEFAULTS[ch]);
     t.appendChild(document.createTextNode(ch));
     addCornerMarks(t); heroCellHover(t);
     box.appendChild(t); return t;
   });
   const start=document.createElement('button');
-  start.className='kstart'; start.type='button';
-  start.appendChild(document.createTextNode('Start'));
+  start.className='kstart'; start.type='button'; start.dataset.letter='START';
+  start.style.setProperty('--kmark-color',dev.START||KMARK_DEFAULTS.START);
+  start.style.textAlign='center'; start.style.lineHeight='1.25';
+  /* two lines (Karin, 27 Aug) — "LOOK BACK" / "WISH FORWARD"; see
+     layoutHeroLogo for the smaller type size this needs to fit the button's
+     one-cell-tall box. */
+  start.appendChild(document.createTextNode('Look back &'));
+  start.appendChild(document.createElement('br'));
+  start.appendChild(document.createTextNode('wish forward'));
   addCornerMarks(start); heroCellHover(start);
   start.addEventListener('click',advanceLanding);
   box.appendChild(start);
@@ -162,10 +188,13 @@ function layoutHeroLogo(box,tiles,start){
     t.style.width=tile+'px'; t.style.height=tile+'px';
     t.style.fontSize=Math.round(tile*0.42)+'px';
   });
-  /* START below A and R, centred between them: three cells wide, one tall */
+  /* START below A and R, centred between them: three cells wide, one tall.
+     Font down to 0.22 of a cell (from the single-line 0.42, then 0.27 for the
+     first two-line pass — Karin, 27 Aug: still a touch big) for the two lines
+     "LOOK BACK" / "WISH FORWARD" inside that one cell's height. */
   start.style.left=(2*tile)+'px'; start.style.top=(2*tile)+'px';
-  start.style.width=(3*cell)+'px'; start.style.height=cell+'px';
-  start.style.fontSize=(Math.round(cell*0.42)-2)+'px';
+  start.style.width=tile+'px'; start.style.height=cell+'px';
+  start.style.fontSize=(cell*0.22)+'px';
 }
 
 /* ---- THE OPENING TOUR ------------------------------------------------------
@@ -375,6 +404,11 @@ function heroField(cv,frameOf){
      and the interface ink with it. That is the rule: one place to change. */
   const cssVar=(k,fb)=>getComputedStyle(document.documentElement)
                         .getPropertyValue(k).trim()||fb;
+  /* --star-dev: TEMPORARY (Karin, 27 Aug) — the dev colour panel's own
+     override for the star/aperture, read live every frame (unlike RAY,
+     below, which is only the fallback) so a colour picked mid-tour shows
+     immediately. See js/app/79-dev-colors.js; removing that file just means
+     this never resolves and both lines fall through to their old colours. */
   const RAY=cssVar('--sheetline','rgba(0,0,0,.34)');
   /* the field stays monochrome on purpose: --done yellow means "this question
      is settled" everywhere else in the piece, and spending it on decoration
@@ -561,7 +595,7 @@ function heroField(cv,frameOf){
         if(bk>=0){ taken.add(bk); armCorner[bk]=[cx,cy]; }
       }
     }
-    ctx.strokeStyle=RAY; ctx.lineWidth=1; ctx.beginPath();
+    ctx.strokeStyle=cssVar('--star-dev','')||RAY; ctx.lineWidth=1; ctx.beginPath();
     const ends=[];
     for(let k=0;k<RAYS;k++){
       const [nx,ny]=tips[k], tgt=armCorner[k];
@@ -583,7 +617,7 @@ function heroField(cv,frameOf){
        the square rather than crossing it. A keeper's square eases from the
        star's own size to the DOM corner mark's (cell*.17 — see .kmark), so the
        landing is exact. */
-    ctx.fillStyle=cssVar('--fg','#141414');
+    ctx.fillStyle=cssVar('--star-dev','')||cssVar('--fg','#141414');
     const hm=Math.max(4,Math.round(unit*.17));
     const km=Math.max(3,Math.round(cell*.17));
     for(const [x,y,keep] of ends){

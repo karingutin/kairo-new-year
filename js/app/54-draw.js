@@ -93,8 +93,13 @@ function startSnakeMorph(g, from, to){
   step(t0);   // render frame 0 (the old layout) synchronously, so the static new snake never flashes first
 }
 /* Decide, after each real repaint, whether the snake should morph. Runs off the
-   layout the paint just drew (recomputed, cheap — only fires on genuine repaints). */
+   layout the paint just drew (recomputed, cheap — only fires on genuine repaints).
+   DISABLED (Karin, 26 Aug): data-q="febdays" now belongs to the radial block
+   (see 30-svg.js), not the snake — writing snakeEmit() into that group would
+   overwrite it. The body is commented out rather than deleted, for whenever
+   the snake comes back. */
 function syncSnake(){
+  /*
   const g=plys[livePly].querySelector('.hl[data-q="febdays"]');
   if(!g){ cancelSnakeMorph(); snakeState=snakeLive=null; return; }
   const nl=snakeBeads(box(), PAPER);
@@ -107,6 +112,7 @@ function syncSnake(){
   if(!snakeRAF && from.beads.length===nl.beads.length){ snakeLive=nl; return; }   // idle & unchanged count -> nothing to glide
   if(reduceMotion()){ cancelSnakeMorph(); snakeLive=nl; return; }                 // static swap already painted
   startSnakeMorph(g, from, nl);
+  */
 }
 
 /* ---------- the node's morph ----------
@@ -298,6 +304,7 @@ function paint(){
   syncSnake();
   syncNode();
   syncRings();
+  syncRadial();
   syncBaseGrid();
 }
 function draw(){

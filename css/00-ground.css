@@ -176,9 +176,12 @@
      format is showing. Anchoring to the sheet's corner would drag the entire
      grid sideways every time the poster changed shape. */
   .gridlayer{position:absolute;inset:0;z-index:0;
+    /* --gridline-dev: TEMPORARY (Karin, 27 Aug) — the dev colour panel's own
+       override, see js/app/79-dev-colors.js. Falls through to the real
+       --gridline when unset, so removing that file needs no change here. */
     background-image:
-      linear-gradient(to right, var(--gridline) 0 1px, transparent 1px),
-      linear-gradient(to bottom, var(--gridline) 0 1px, transparent 1px);
+      linear-gradient(to right, var(--gridline-dev, var(--gridline)) 0 1px, transparent 1px),
+      linear-gradient(to bottom, var(--gridline-dev, var(--gridline)) 0 1px, transparent 1px);
     background-size:var(--cell) var(--cell);
     background-position:calc(50vw + var(--over)) calc(50dvh + var(--over))}
 

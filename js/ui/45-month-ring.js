@@ -15,10 +15,13 @@
    one reads as chosen.
    ===================================================================== */
 function monthRingMarkup(q,c,PH,W){
-  /* Four across, three down, tangent — so the white between them is the diamond
-     four touching circles leave, not a gap. Inset by Q_INSET, the panel's one
-     hug, so the grid's outer edge lines up exactly with the title's. */
-  const cols=RING_COLS, rows=3, gap=CIRCLE_GAP;
+  /* Four across, tangent — so the white between them is the diamond four
+     touching circles leave, not a gap. Inset by Q_INSET, the panel's one hug,
+     so the grid's outer edge lines up exactly with the title's.
+     ROWS ARE NOT FIXED AT THREE any more (Karin, 30 Aug: the month question
+     became an 8-word one) — whatever the option count, it wraps at RING_COLS
+     across and however many rows that takes. Eight lands on 4x2 exactly. */
+  const cols=RING_COLS, rows=Math.ceil(q.options.length/cols), gap=CIRCLE_GAP;
   /* THE CIRCLES NO LONGER TOUCH. They were tangent, and the white between them
      was the diamond four touching circles leave; a few pixels of gap trades that
      figure for four separate marks, which is what a set of twelve alternatives
@@ -35,6 +38,22 @@ function monthRingMarkup(q,c,PH,W){
   const R=d/2, cur=picked(q.id);
   const fs=Q_HFS*c;                            // the name, inside its circle — the hint's size (14px)
   const ringFs=d*0.185*c;                      // the name, running round
+  /* ONE size for every word (Karin, 30 Aug: was sized per-word, so a short
+     word like FAITH sat bigger than HEALING right next to it — inconsistent
+     for a set of parallel options). Solved for THIS question's own longest
+     option — for month that's 'FRIENDS', for febdays 'A PROMOTION' — so
+     every circle in the set carries the same size, whatever its own
+     word's length. Then a per-question nudge: month came out a touch big
+     (-1), febdays' longest option is long enough that the shared formula
+     alone read as too small — its circles only ever hold four words, never
+     eight, so there is room to spend, but the fit constant is what actually
+     controls the size here (month's own longest word already hits the
+     Q_HFS ceiling below regardless of the constant, which is why nudging
+     febdays needed a SMALLER constant — bigger result — not a flat add). */
+  const RING_FS_K={month:0.62, febdays:0.45}, RING_FS_NUDGE={month:-1, febdays:-4.5};
+  const fitK=RING_FS_K[q.id] ?? 0.62;
+  const rawFs=R*c*1.5/(Math.max(...q.options.map(m=>String(m).length))*fitK);
+  const inFsAll=(q.id==='febdays' ? rawFs : Math.min(fs,rawFs)) + (RING_FS_NUDGE[q.id] ?? 0);
   /* The gap this leaves with is the question's Figma one; renderSnake then
      SETTLES the grid down into the middle of the room the words really left —
      see settleControl, and why it cannot be done from here. */
@@ -44,15 +63,28 @@ function monthRingMarkup(q,c,PH,W){
     const col=k%cols, row=Math.floor(k/cols);
     const cx=(Q_SHIFT+col*(d+gap)+d*0.5)*c, cy=(top+row*(d+gap)+d*0.5)*c, r=R*c;
     const on=cur===m;
-    /* Three letters, in the grid AND on the ring. The full name was tried and
-       dropped: it forced a single pass, which read as a label bent round a curve
-       rather than as something running. */
-    const lab=String(m).slice(0,3).toUpperCase();
+    /* The full word now (Karin, 30 Aug: month names cut to three letters
+       cleanly, but the new words — JOY, GROWTH, CHANGE... — read as
+       initials otherwise). Sized down from the fixed hint size when a word
+       is too wide for its circle to carry at that size. */
+    const lab=String(m).toUpperCase();
+    const inFs=inFsAll;
     if(!on){
+      /* TWO LINES WHEN THE WORD HAS ROOM TO GIVE ONE (Karin, 30 Aug: febdays'
+         longer options — "A PROMOTION", "A REUNION" — read cramped on one
+         line at this size). Splits on the FIRST space only, so a two-word
+         option becomes two lines and a one-word option (CLOSURE) never
+         wraps at all. */
+      const words=lab.split(' ');
+      const lines=words.length>1 ? [words[0], words.slice(1).join(' ')] : [lab];
+      const lh=inFs*1.05;
+      const ys=lines.length===1 ? [cy] : [cy-lh/2, cy+lh/2];
+      const text=lines.map((line,li)=>
+        '<text x="'+cx.toFixed(1)+'" y="'+ys[li].toFixed(1)+'" text-anchor="middle"'
+        + ' dominant-baseline="central" font-size="'+inFs.toFixed(1)+'">'+line+'</text>').join('');
       g+='<g class="mo" data-val="'+esc(String(m))+'">'
        + '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+r.toFixed(1)+'"/>'
-       + '<text x="'+cx.toFixed(1)+'" y="'+cy.toFixed(1)+'" text-anchor="middle"'
-       + ' dominant-baseline="central" font-size="'+fs.toFixed(1)+'">'+lab+'</text></g>';
+       + text+'</g>';
       return;
     }
     /* The chosen one, per the sketch: THE CIRCLE IS GONE. Not hollowed, not
@@ -60,8 +92,12 @@ function monthRingMarkup(q,c,PH,W){
        the circle was, and the hole it leaves in the field is the whole signal.
        The ring sits well inside the circle's own footprint — 0.55, not 0.70 —
        so there is clear white between the type and the circles it touches. The
-       gap belongs to the name, not to its neighbours. */
-    const rr=r*0.55;                           // the path the name runs on
+       gap belongs to the name, not to its neighbours.
+       febdays only, nudged to 0.62 (Karin, 30 Aug: the chosen slot read
+       smaller than its solid neighbours at 0.55 — only four circles here,
+       never eight, so there's room to let the ring sit closer to the edge
+       without crowding it). */
+    const rr=r*(q.id==='febdays' ? 0.62 : 0.55);   // the path the name runs on
     const id='mring'+k;
     const circ=2*Math.PI*rr;
     /* THE RING IS FILLED, EXACTLY.
@@ -80,10 +116,31 @@ function monthRingMarkup(q,c,PH,W){
        run 137 units long to sit on a 90-unit ring squeezed the letters into each
        other. So the size is derived: whatever makes three passes of this name
        fill this circumference naturally, floored so it never becomes a smear.
-       textLength then only has to take up the rounding. */
-    const reps=3;
+       textLength then only has to take up the rounding.
+       febdays' options run longer than a month name ever did ("A PROMOTION"),
+       so three passes of one squeezed the type past reading — two is fine
+       there (Karin, 30 Aug: "no problem if it only shows twice").
+
+       febdays INVERTS this (30 Aug: "the spinning one should be the same
+       size as the still ones \u2014 if that takes a third repeat, fine"): the
+       size is FIXED to inFsAll, the same static size every unpicked circle
+       already carries, and REPS is what bends to fit the circumference at
+       that fixed size instead \u2014 however many whole passes of the word fit
+       is however many are set, floored at 2 for the same "reads as running,
+       not repeated" reason. */
+    let reps, ringFit;
+    if(q.id==='febdays'){
+      ringFit=inFsAll;
+      reps=Math.max(2, Math.round(circ/((lab.length+3)*ringFit*0.58)));
+    } else {
+      reps=3;
+      const run0=Array.from({length:reps},()=>lab).join(' \u00b7 ')+' \u00b7';
+      /* *1.15 (Karin, 30 Aug: the spinning name read a bit small once chosen) \u2014
+         textLength still stretches the run to fit the circumference exactly,
+         so this only changes the GLYPHS' size, not whether they fit. */
+      ringFit=Math.max(6.5, circ/(run0.length*0.58))*1.15;
+    }
     const run=Array.from({length:reps},()=>lab).join(' \u00b7 ')+' \u00b7';
-    const ringFit=Math.max(6.5, circ/(run.length*0.58));
     g+='<g class="mo on" data-val="'+esc(String(m))+'">'
      /* the turn: its own group so only the type rotates, about the circle's
         centre, stated in px because an SVG group has no box of its own */
@@ -235,9 +292,11 @@ function cardsMarkup(q,c,PH,W){
   return s+'</svg>';
 }
 
-/* COLORWAY — the last question. Six SPLIT circles (three across, two down), each
-   half one colour and half the other from COLORWAYS. Touching and bottom-hugged
-   like the other circle grids; once one is picked the rest dim so the choice reads. */
+/* COLORWAY — the last question. Six SPLIT circles (three across, two down),
+   each half one colour and half the other from COLORWAYS. Restored (Karin,
+   27 Aug) after one round with solid pick-two-from-six swatches. Touching
+   and bottom-hugged like the other circle grids; once one is picked the rest
+   dim so the choice reads. */
 function colorwayMarkup(q,c,PH,W){
   const cols=3, rows=2;
   const gap=CIRCLE_GAP;                             // a small gap between swatches
@@ -246,7 +305,11 @@ function colorwayMarkup(q,c,PH,W){
   const gridW=cols*d+(cols-1)*gap, gridH=rows*d+(rows-1)*gap;
   const left0=(W-gridW)/2;                          // centred horizontally
   const top=textBottomCells(q)+ctrlGap(q.id);       // crop origin — a flow child now
-  const r=(d/2)*c, pk=picked(q.id);
+  /* Before any pick, show the poster's own standing default as already chosen
+     (Karin, 30 Aug: arriving here to find the pair the sheet is ALREADY in
+     unmarked read as a mistake). Falls back to picked() the moment a real
+     pick lands — this is display only, not a stand-in answer. */
+  const r=(d/2)*c, pk=isChosen(q.id) ? picked(q.id) : (q.default!==undefined ? q.default : null);
   let s='<svg viewBox="0 '+(top*c).toFixed(1)+' '+(W*c).toFixed(1)+' '+(gridH*c).toFixed(1)+'"'
       + ' class="cway" style="margin-top:'+(ctrlGap(q.id)*c).toFixed(1)+'px">';
   q.options.forEach((opt,i)=>{
@@ -300,7 +363,6 @@ function colorwayMarkup(q,c,PH,W){
   });
   return s+'</svg>';
 }
-
 /* Swap the chosen swatch's two colours by SPINNING it 180° about its centre: a
    diagonal split turned half a turn lands each colour in the other's half, so the
    rotation IS the swap. `done` fires at rest, where the panel repaints in the new
@@ -329,13 +391,14 @@ function spinSwatch(cw, done){
    centre is the whole idea: the words are not a list of four equal alternatives,
    they are four directions out of where the person is standing, and the thing
    they are standing on is not drawn. The arrangement carries the meaning that a
-   grid of four buttons threw away — Regret behind, Trust ahead, Worry above,
-   Presence below.
+   grid of four buttons threw away.
+   Rosh Hashanah edition (Karin, 26 Aug): the four words are now Courage,
+   Renewal, Clarity, Growth (a wish for next year, not a stance on time), read
+   left to right in that order — the compass positions are generic, keyed to
+   q.options' order, not to what any specific word means.
 
    WIDE, not square. The block spans the full hug, so the horizontal axis comes
-   out longer than the vertical, and that is the right way round: left-to-right
-   is the axis the whole piece already reads as time. Regret and Trust sit at its
-   two ends and are the furthest apart of the four.
+   out longer than the vertical.
 
    It emits circlesMarkup's own class names on purpose. `.vcirc .vc[data-val]` is
    already wired for hit-testing, for the chosen state and for the CSS, so this
@@ -432,9 +495,13 @@ function compassMarkup(q,c,PH,W){
 function panelControl(q,c,PH,W){
   if(q.id==='shape')     return shapeDuoMarkup(q,c,PH,W);
   if(q.id==='density')   return densityFillMarkup(q,c,PH,W);
-  if(q.id==='saying')    return circlesMarkup(q,c,PH,W);   /* a row of four circles, like febdays — was compassMarkup */
+  if(q.id==='saying')    return circlesMarkup(q,c,PH,W);   /* a row of four circles — was compassMarkup */
   if(q.id==='vacations') return circlesMarkup(q,c,PH,W);
-  if(q.id==='febdays')   return circlesMarkup(q,c,PH,W);
+  /* febdays (Karin, 30 Aug: now a wish, four short PHRASES, not day-counts) —
+     moved off circlesMarkup's single fixed font-size onto monthRingMarkup's
+     ring, which fits the label to its circle and wraps at RING_COLS same as
+     the Q1 focus-word ring. Falls through to the generic q.type==='choice'
+     branch below. */
   if(q.id==='colorway')  return colorwayMarkup(q,c,PH,W);
   if(q.type==='number') return dialMarkup(q,c,PH,W);
   if(q.type==='bar')    return barMarkup(q,c,PH,W);

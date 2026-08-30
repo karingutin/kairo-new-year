@@ -23,3 +23,6 @@ lattice/weekend new.html
 # The pre-split monolith, superseded by index.html + css/ + js/. Kept on
 # disk as the byte-for-byte reference the split was checked against.
 architecture-of-time-dots.html
+
+# Wix CLI/MCP scratch log.
+.wix/

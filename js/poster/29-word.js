@@ -4,35 +4,61 @@
    ink-stroked, so the artwork shows through only at the stroke: the words
    read as cut out of the sheet rather than printed on it.
 
-     Regret   -> LONG GONE   (blue)
-     Trust    -> STILL HERE  (blue)
-     Presence -> RIGHT NOW   (red)
-     Worry    -> WHAT NOW    (red)
+     Courage -> BOLD STEPS
+     Growth  -> REACH HIGH
+     Renewal -> START FRESH
+     Clarity -> CLEAR PATH
 
-   MEASURED OFF THE FIGMA FRAMES (2894:6596/6616/6625/6635, 1981 x 2825),
-   not eyeballed: text box left 106, cap top 1745, Helvetica Regular 500,
-   line pitch 420 (0.84 leading), two lines flush left at natural tracking,
-   stroke ~4.9. Red is #F5242B — the sheet's own red role, so the colourway
-   swaps it for free; blue is #0059FF, this layer's one frozen ink, added to
-   inkedMarkup's map. Every number is stored as a fraction of the frame, so
-   the block scales with any sheet.
+   Rosh Hashanah edition (Karin, 26 Aug): the four words changed (see the
+   `saying` bank entry), and with them the fixed per-word ink went away —
+   see sayingInk() below. Position/size are UNCHANGED: text box left 106,
+   cap top 1745, Helvetica Regular 500, line pitch 420 (0.84 leading), two
+   lines flush left, stroke ~4.9, all still measured off the original Figma
+   frames (2894:6596/6616/6625/6635, 1981 x 2825) — the new words' own Figma
+   frames (3051:11/12/14/16) are cropped tight to their own text and carry
+   no comparable sheet position, so they aren't a positioning source.
+   Every number below is stored as a fraction of the frame, so the block
+   scales with any sheet.
    Each line carries textLength = its Helvetica advance sum, so the run is
-   pinned to the Figma width even if the browser substitutes the face.
-   ===================================================================== */
+   pinned to the Figma width even if the browser substitutes the face —
+   this is also what makes the sub-pixel manual kerning Figma added around
+   tight pairs (an 'e' in REACH, an 'e' and an 'ar' in CLEAR) unnecessary
+   here: textLength already forces the whole line to the right width
+   regardless of the substituted face's own kerning. */
 const SAYING_X   =106/1981;    // left edge, fraction of the sheet width
 const SAYING_TOP =1745/2825;   // line 1 cap top, fraction of the sheet height
 const SAYING_FS  =500/2825;    // font-size, fraction of the sheet height
 const SAYING_LH  =420/500;     // line pitch, em
 const SAYING_CAP =0.717;       // Helvetica cap height, em (cap top -> baseline)
 const SAYING_SW  =2.9/1981;    // stroke width, fraction of the sheet width (measured 4.9, taken 2pt lighter by decision)
-/* per-word advance width in em, summed from Helvetica's own glyph metrics */
-const SAYING_EM={LONG:2.834, GONE:2.945, STILL:2.668, HERE:2.778,
-                 RIGHT:3.111, NOW:2.444, WHAT:2.944};
+/* per-word advance width in em, summed from Helvetica's own glyph metrics —
+   every word at its natural sum, same as every other title (Karin, 26 Aug:
+   HIGHER, which needed its and REACH's spacing squeezed to fit the sheet,
+   was swapped for the shorter HIGH instead of staying tightened). */
+const SAYING_EM={BOLD:2.723, STEPS:3.279, REACH:3.500, HIGH:2.500,
+                 START:3.278, FRESH:3.389, CLEAR:3.334, PATH:2.667};
 const SAYING_TEXT={
-  Regret:  {ink:'#0059FF', lines:['LONG','GONE']},
-  Trust:   {ink:'#0059FF', lines:['STILL','HERE']},
-  Presence:{ink:'#F5242B', lines:['RIGHT','NOW']},
-  Worry:   {ink:'#F5242B', lines:['WHAT','NOW']}
+  Courage:{lines:['BOLD','STEPS']},
+  Growth: {lines:['REACH','HIGH']},
+  Renewal:{lines:['START','FRESH']},
+  Clarity:{lines:['CLEAR','PATH']}
+};
+/* Simple luma, not full relative luminance — this is only ever comparing
+   the poster's own two chosen inks against each other to pick the darker,
+   not checking either against a background, so the cheap weighting is
+   enough. */
+const hexLuma=hex=>{
+  const n=parseInt(hex.slice(1),16);
+  return 0.299*((n>>16)&255) + 0.587*((n>>8)&255) + 0.114*(n&255);
+};
+/* THE WORD'S INK: always the darker of the two colours the person picked
+   (Karin, 26 Aug) — not a role fixed per word, because there is no longer a
+   red/blue split that means anything to this layer specifically. Reads
+   posterInk() directly rather than going through inkedMarkup's frozen-hex
+   map, so there is nothing here for that map to swap. */
+const sayingInk=()=>{
+  const ink=posterInk();
+  return hexLuma(ink.red)<=hexLuma(ink.blue) ? ink.red : ink.blue;
 };
 /* HOW LONG THE WORD TAKES TO BE WRITTEN, in ms, first letter to last. The
    per-letter beat is derived from this and the letter count, so a nine-letter
@@ -77,7 +103,7 @@ function sayingLayer(B,C){
      first finished instead of restarting — it is one thing being written, not
      two things appearing side by side. */
   const n=cfg.lines.join('').length;
-  let s='<g fill="'+C.bg+'" stroke="'+cfg.ink+'" stroke-width="'+sw.toFixed(2)+'"'
+  let s='<g fill="'+C.bg+'" stroke="'+sayingInk()+'" stroke-width="'+sw.toFixed(2)+'"'
       + ' font-family="Helvetica, \'Helvetica Neue\', Arial, sans-serif"'
       + ' font-weight="400" font-size="'+fs.toFixed(1)+'">';
   let gi=0;

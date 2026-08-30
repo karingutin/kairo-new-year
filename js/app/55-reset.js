@@ -11,6 +11,7 @@ function resetState(){
   cancelSnakeMorph(); snakeState=snakeLive=null;   // drop any in-flight snake glide
   cancelNodeMorph(); nodeState=nodeLive=null;      // and any in-flight node glide
   cancelRingsMorph(); ringsState=ringsLive=null;   // and any in-flight ring glide
+  cancelRadialMorph(); radialState=radialLive=null;   // and any in-flight radial-block glide
   stopMonthGrow(); snakeAt=null;            // no frame ticking, no revisit held open
   Object.assign(S,PROFILE_DEFAULTS);          // includes baseDone:false — starts over for real
   openQ=null; pinnedQ=null; introOpen=false; cardBox=null;

@@ -59,7 +59,8 @@ function buildSVG(F){
     + '<defs><clipPath id="artCut-'+B.w+'x'+B.h+'">'
     +   '<rect x="0" y="0" width="'+B.w+'" height="'+B.h+'"/></clipPath></defs>'
     + '<g clip-path="url(#artCut-'+B.w+'x'+B.h+')">'
-    + (isChosen('shape') ? '<g class="hl" data-q="basegrid" style="pointer-events:none">'+baseGridLayer(C,B)+'</g>' : '')
+    /* always drawn — shape/density are fixed defaults now, not an earned question */
+    + '<g class="hl" data-q="basegrid" style="pointer-events:none">'+baseGridLayer(C,B)+'</g>'
     /* the answered layers live in .art so a hovered one can be picked out and the
        rest dimmed (see the .hl hover rules). Each layer is a single child of .art;
        .hl marks the ones wired to a hover note (month is the first). */
@@ -102,10 +103,13 @@ function buildSVG(F){
     /* the ring stack hangs on the top-right corner, above the month silhouette
        but below the node and the beams, which stay centred and print over it */
     + (isChosen('vacations') ? '<g class="hl" data-q="vacations" opacity="0.85">'+ringsMarkup(B,C)+'</g>' : '')
-    /* The snake is drawn BEFORE the node, so the node prints OVER it — the snake
-       sits BELOW the alarms element in the layering, though both share the centre.
-       Each answered layer is its own hover element with its own note. */
-    + (isChosen('febdays') ? '<g class="hl" data-q="febdays" opacity="0.85" style="--sstep:'+(820/Math.max(1,beadCountFromAnswers())).toFixed(1)+'ms">'+snakeMarkup(B,C)+'</g>' : '')
+    /* The radial block is drawn BEFORE the node, so the node prints OVER it —
+       it sits BELOW the alarms element in the layering, though both share the
+       centre. Each answered layer is its own hover element with its own note.
+       REPLACED THE SNAKE here (Karin, 26 Aug) — see RADIAL in
+       26b-radial-block.js. The snake's own code (SNAKEL, snakeMarkup, the
+       morph in 54-draw.js) is left in place but no longer called from here. */
+    + (isChosen('febdays') ? '<g class="hl" data-q="febdays" opacity="0.85">'+radialBlockMarkup(B,C)+'</g>' : '')
     + (isChosen('alarms') ? '<g class="hl" data-q="alarms" style="--nstep:'+(300/Math.max(1,rayCountFromAnswers())).toFixed(1)+'ms">'+risoNodeMarkup(B,C)+'</g>'  : '')
     + '</g>'
     /* The beams were removed — the snake took the centre. beamsMarkup and BEAMS

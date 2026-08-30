@@ -23,7 +23,7 @@ const FLIP_MS=460;
 const CONFIG = {
   DATA_ENDPOINT: "",            // e.g. "https://hook.eu2.make.com/xxxxx"
   POST_TO_PARENT: true,
-  QUESTIONS_PER_SESSION: 10,    // how many bank questions to draw
+  QUESTIONS_PER_SESSION: 8,     // how many bank questions to draw — Rosh Hashanah edition: 8, ending on colorway
   SHUFFLE_TAIL: false,          // true = shuffle everything after the pinned lead.
                                 // false keeps the bank's authored order, which is
                                 // deliberate: the questions build on each other.
@@ -48,11 +48,11 @@ const CONFIG = {
      against. Only after them does the path fork, and then any of the next
      OPEN_AHEAD is available — so there is always a choice of where to go
      without ever losing the thread.
-     Five, not three: shape and density (the two questions that used to open
-     the landing sequence, and now lay the base grid) joined the front of the
-     bank, so the strict walk covers them plus the month/snake/node trio it
-     always covered. */
-  LINEAR_LEAD: 5,
+     Three: the month/snake/node trio. shape and density (which briefly joined
+     the front of the bank to lay the base grid) are hidden again in the
+     Rosh Hashanah edition — the base grid is now a fixed default, not earned —
+     so the strict walk is back to just this trio. */
+  LINEAR_LEAD: 3,
   OPEN_AHEAD: 2,
 
   /* the wake that travels from the question just answered toward the next one.
@@ -272,5 +272,19 @@ function derive(){
   age=Math.max(0,Math.min(99,age));
   const knownAge=!!dob || String(S.age)!=='';
   return {today,dob,age,daysLived,daysToBirthday,ageFromDob:!!dob,knownAge};
+}
+
+/* TEMPORARY (Karin, 27 Aug) — Karin-only size/position overrides for the
+   radial block (febdays, question 2) and the node/spider (alarms, question
+   3), read by their own layers (see js/poster/26b-radial-block.js and
+   js/poster/21-node.js) and written by the picker in js/app/79-dev-poster.js.
+   Persisted so a chosen size/position survives a reload. To remove the whole
+   feature: delete this block, 79-dev-poster.js, its <script> tag in
+   index.html, and the dev.* reads in the two poster files above. */
+const POSTER_DEV_KEY='kairoPosterDev';
+const POSTER_DEV_DEFAULTS={radialScale:1, radialY:0, nodeScale:1, nodeY:0};
+function posterDevOverrides(){
+  try{ return {...POSTER_DEV_DEFAULTS, ...JSON.parse(localStorage.getItem(POSTER_DEV_KEY)||'{}')}; }
+  catch(e){ return {...POSTER_DEV_DEFAULTS}; }
 }
 

@@ -27,13 +27,16 @@ const NODE={
   yCompress:0.45,
   centerInk:'#F5242B', rayInk:'#0C55FF',
   /* Where the mark sits, as a fraction of the sheet — Karin: 0.627 was too low,
-     0.34 was too high, coming back down partway. */
-  cx:0.76, cy:0.55,
+     0.34 was too high, coming back down partway. Moved again (26 Aug) into
+     the small marked-up box in the sheet's upper-left, once the radial block
+     took over the band the node used to share with the snake. */
+  cx:0.285, cy:0.129,
   /* One knob over all the fractions below, so the mark's proportions stay the
      tool's while its overall size is a single number to tune. Below 1 because
      at full size the node dominated a sheet it now shares with the month
-     layer. 0.67 -> 0.55 on 16 Aug: Karin found the spider still too big. */
-  scale:0.55,
+     layer. 0.67 -> 0.55 on 16 Aug: Karin found the spider still too big;
+     0.55 -> 0.32 on 26 Aug for its new, smaller box. */
+  scale:0.336,
   /* fractions of the poster width, taken from the tool's own defaults
      (elementScale 2.15, spread 700, roughness 9, misreg 6) measured at the
      default sheet's 1050 units — all multiplied through by `scale` */
@@ -91,8 +94,11 @@ const ptsAttr=pts=>pts.map(p=>p[0].toFixed(2)+','+p[1].toFixed(2)).join(' ');
 function nodeRays(B,C){
   B=B||box(); C=C||PAPER;
   const rays=rayCountFromAnswers();
-  const W=B.w, U=W*NODE.scale;              // every length below is a fraction of U
-  const cx=W*NODE.cx, cy=B.h*NODE.cy;
+  /* Karin-only size/position override, see posterDevOverrides() in
+     00-core.js — nodeScale multiplies NODE.scale, nodeY shifts NODE.cy. */
+  const dev=posterDevOverrides();
+  const W=B.w, U=W*NODE.scale*dev.nodeScale;   // every length below is a fraction of U
+  const cx=W*NODE.cx, cy=B.h*(NODE.cy+dev.nodeY);
   const amp=NODE.amp*U, misreg=NODE.misreg*U;
   const squareSize=NODE.square*U;
   const ellRx=NODE.ellRx*U, ellRy=NODE.ellRy*U;
@@ -156,7 +162,7 @@ function nodeEmit(L){
     const er=mulberry32((raySeed(i)^0x9E3779B9)>>>0);
     ellipses+='<polygon class="nell" style="--ri:'+i+'" points="'+ptsAttr(roughEllipsePts(e[0],e[1],ellRx,ellRy,amp,er))+'"/>';
   });
-  ellipses='<g fill="'+NODE.rayInk+'" fill-opacity="0.85" stroke="'+NODE.rayInk
+  ellipses='<g fill="'+NODE.rayInk+'" fill-opacity="0.90" stroke="'+NODE.rayInk
          + '" stroke-width="'+(NODE.ellW*W).toFixed(2)+'" stroke-linejoin="round">'+ellipses+'</g>';
 
   const sr=mulberry32((roughSeed+12345)>>>0);

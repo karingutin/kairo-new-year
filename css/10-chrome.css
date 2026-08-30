@@ -208,6 +208,14 @@
     animation:snakeBeadIn .42s var(--eo) both;
     animation-delay:calc(var(--bi) * var(--sstep,15ms))}
 
+  /* THE RADIAL BLOCK (Q2/febdays), Rosh Hashanah edition: the snake rule above
+     is dead code now — the layer in this slot is the radial block of beams
+     (js/poster/26b-radial-block.js), which has no .sbead children, so that
+     rule simply never matches. Same treatment as the month silhouette
+     (Karin, 30 Aug: "let's do that one" — referring to monthFade): a plain
+     fade on the whole group, no scale, on every pick not only the first. */
+  .hl.enter[data-q="febdays"]{animation:monthFade 1.25s var(--eo) both}
+
   /* THE NODE (Q2/alarms): the centre square pops first, then the rays shoot outward
      one by one (a stroke draw-on — --rl is each ray's own length) and each blue tip
      pops as its ray lands. --nstep (set in JS off the ray count) keeps the whole fan
@@ -282,14 +290,14 @@
     animation:sayingWrite .24s steps(1,end) both;
     animation-delay:calc(var(--gd,0ms) - .24s)}
 
-  /* THE MONTH SILHOUETTE (Q3): on FIRST appearance it grows from the sheet
-     centre — a smooth scale of the whole layer group about the viewBox centre,
-     the same move as the base grid but keyed to the sheet centre rather than the
-     group's own box. A month CHANGE keeps the raster re-grow (startMonthGrow);
-     .enter is off by then, so this never fights it. */
-  .hl.enter[data-q="month"]{transform-box:view-box;transform-origin:50% 50%;
-    animation:monthGrow .72s var(--eo) both}
-  @keyframes monthGrow{from{transform:scale(.04)}to{transform:scale(1)}}
+  /* THE MONTH SILHOUETTE (Q3/Q1): a plain fade, no scale and no movement —
+     tried against a per-circle stagger (too heavy at ~6,700 animated
+     circles) and a whole-group zoom (Karin, 30 Aug: "a bit ugly") before
+     landing here. 2.5s read as too slow once seen at full speed, 1.75s
+     still too slow; 1.25s is the settled length. onPick re-arms .enter on
+     every pick, not only the first, so this plays on every word change too. */
+  .hl.enter[data-q="month"]{animation:monthFade 1.25s var(--eo) both}
+  @keyframes monthFade{from{opacity:0}to{opacity:1}}
 
   /* THE DECADES BRICK BAND (Q7): on first appearance the checkerboard lays in
      column by column from the left, each brick growing up from its own foot —

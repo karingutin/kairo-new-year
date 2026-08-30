@@ -1,6 +1,6 @@
 # Deploy — KAIRO / Architecture of Time
 
-**Live: https://karingutin.github.io/Archi-Time/**
+**Live: https://karingutin.github.io/kairo-new-year/**
 
 Host: GitHub Pages, served from `main` at the repository root. First deployed
 17 August 2026, commit `914a197`.
@@ -23,7 +23,7 @@ machine, so the site needs no privacy notice and no backend.
 | --- | --- |
 | Host | GitHub Pages, branch `main`, folder `/ (root)`, HTTPS enforced |
 | Repo visibility | Public |
-| Address | `karingutin.github.io/Archi-Time` — a custom domain can be added later without breaking anything |
+| Address | `karingutin.github.io/kairo-new-year` — a custom domain can be added later without breaking anything |
 | Answer collection | None. `localStorage` only |
 | Build source | Deploy from a branch, not Actions. A plain file copy, which is the right choice for a project whose load order is hand-authored |
 
@@ -76,7 +76,7 @@ no reason for the door to be there. To point the live site at a webhook, set
 
 ## Verified live
 
-Checked on https://karingutin.github.io/Archi-Time/ after the first build:
+Checked on https://karingutin.github.io/kairo-new-year/ after the first build:
 
 - All 40 requests return 200 — index, four CSS, thirty-four JS. macOS is
   case-insensitive and Pages is not, so this is the check that matters, and it

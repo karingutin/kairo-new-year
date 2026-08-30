@@ -43,24 +43,30 @@ const MONTHL={
 /* =====================================================================
    THE GROWTH — how the month layer arrives.
 
-   Picking a month does not cut straight to the finished silhouette. The layer
+   Tried a per-circle fade (Karin, 30 Aug: too heavy at ~6,700 individually-
+   animated elements) and a plain CSS fade on every pick (30 Aug: "not good"
+   for a RE-pick specifically) before landing back here, on the ORIGINAL
+   split: FIRST appearance is the cheap CSS scale-up (.hl.enter[data-q=
+   "month"] in css/10-chrome.css, same move as any other layer's entrance);
+   a LATER pick — the word actually changing — re-plays this ladder instead,
+   copied verbatim from the pre-Rosh-Hashanah build (karingutin.github.io/
+   Kairo/js/poster/20-month.js).
+
+   Picking a word does not cut straight to the finished silhouette. The layer
    is built eight times over, with the circles' MINIMUM radius climbing the
    ladder below: small circles have to follow the letterforms to fit, so the
-   first frame is the temperature actually legible as type, and each frame
-   after it swells until the forms merge into the silhouette the poster keeps.
-   The last rung IS MONTHL.rMin, so the animation ends exactly where a static
+   first frame is the word actually legible as type, and each frame after it
+   swells until the forms merge into the silhouette the poster keeps. The
+   last rung IS MONTHL.rMin, so the animation ends exactly where a static
    build would have started — nothing about the finished poster changes.
 
    Stepped, not tweened, and that is not a shortcut: one frame costs a full
    rasterise-and-repack of ~3,350 circles plus a ~400KB innerHTML swap, so a
-   per-frame interpolation would run at about 10fps whatever the intent. It
-   also happens to be the language the opening screen already speaks — whole
-   cells, hard cuts, one clock.
+   per-frame interpolation would run at about 10fps whatever the intent.
 
    BEAT. The build is not free, so the wait between frames is what is LEFT of
    the beat after the frame was built, not the beat on top of it. Otherwise the
-   growth would drift out to nearly twice its intended length on a slow frame.
-   ===================================================================== */
+   growth would drift out to nearly twice its intended length on a slow frame. */
 const MONTH_GROW={
   /* ends on MONTHL.rMin — see the assertion in startMonthGrow */
   steps:[8,12,17,21,26,31,35,40],
@@ -76,7 +82,7 @@ const reduceMotion=()=>window.matchMedia
 function stopMonthGrow(){
   clearTimeout(monthGrow.t); monthGrow.t=0; monthGrow.i=-1;
 }
-/* Called on every month press, including a re-press of the same month: the
+/* Called on every re-press, including a re-press of the same word: the
    growth is the answer being given, not the answer being different. A press
    mid-growth abandons the run in progress and starts over from the first rung,
    so the layer can never be left parked on an intermediate radius. */
@@ -254,22 +260,21 @@ function monthCircles(B,text){
 
 /* Regenerating means rasterising type and packing ~3,350 circles, so the built
    markup is cached. The key is everything that can change it: the month, the
-   format, the ground the fill has to match, the rolled scatter falloff, and
-   the rung of the growth ladder — which is why one entry is enough even
-   during the growth: it climbs and never comes back. */
+   format, and the ground the fill has to match. */
 let monthCache={key:'',markup:''};
 function monthLayer(B,C){
   const month=ans('month');
-  const temps=MONTH_TEMPS[month];
-  if(!temps) return '';
+  if(!month) return '';
   if(monthFontState!=='ready'){ ensureMonthFont(); return ''; }
 
   const key=month+'|'+B.w+'x'+B.h+'|'+C.bg+'|'+rolled('month')+'|'+monthRMin();
   if(monthCache.key===key) return monthCache.markup;
 
-  /* the tool sets the temperature four times over, which is what puts it on
-     four lines once monthLines() refuses to pair two six-character words */
-  const built=monthCircles(B,(temps+' ').repeat(4).trim());
+  /* Set four times over, which is what puts it on four lines once monthLines()
+     refuses to pair two words together (Karin, 30 Aug: the answer word ITSELF
+     is the type now — see the bank entry's own note — so this repeats the
+     word, not a temperature code borrowed from it). */
+  const built=monthCircles(B,(month+' ').repeat(4).trim());
   if(!built){ monthCache={key,markup:''}; return ''; }
   const {circles,strokePx}=built;
 
