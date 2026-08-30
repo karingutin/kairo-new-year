@@ -170,21 +170,16 @@ function exportSVG(){ download(new Blob([buildSVG()],{type:'image/svg+xml'}), fi
    embed. This used to fetch Google Fonts and base64-inline two woff2 files on
    the first export — a real round-trip — and then splice them into a <style>
    tag that buildSVG no longer emits, so the splice silently did nothing. */
-/* ONE RASTERISER FOR BOTH, and the button it was pressed from is PASSED IN
-   rather than looked up. It used to read getElementById('dlPng'), which tied
-   the export to one particular button in one particular card — and that card
-   is gone. Anything that can be pressed can hand itself over; nothing has to,
-   and a call with no button simply exports without saying so on screen.
-   JPEG carries no alpha, but the sheet's first mark is an opaque ground rect
-   the width and height of the poster (see buildSVG), so there is no
-   transparency to lose and no white to paint in underneath. */
-async function exportRaster(kind,btn){
-  const old=btn?btn.textContent:'';
-  if(btn){ btn.textContent='Saving…'; btn.disabled=true; }
+/* THE RASTERISER, and it is separate from the saving on purpose: the QR beside
+   the finished poster points at an upload of these exact bytes (see
+   js/app/64-share.js), and "exact" has to be structural. Two code paths that
+   both happen to rasterise correctly would drift the first time one of them
+   was touched. */
+async function rasterBlob(kind){
+  const svg=buildSVG();
+  const img=new Image(), scale=2.6;
+  const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
   try{
-    const svg=buildSVG();
-    const img=new Image(), scale=2.6;
-    const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
     await new Promise((res,rej)=>{ img.onload=res; img.onerror=rej; img.src=url; });
     const c=document.createElement('canvas');
     const B=box();                       // the current format's own pixel box
@@ -193,11 +188,28 @@ async function exportRaster(kind,btn){
        the bottom of every PNG and JPEG while the SVG kept it. */
     c.width=B.w*scale; c.height=(B.h+RECORD_ROWS*(B.w/B.cols))*scale;
     c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-    URL.revokeObjectURL(url);
     const jpg=kind==='jpg';
-    c.toBlob(b=>{ if(b) download(b, fileBase()+'.'+kind); },
-             jpg?'image/jpeg':'image/png', jpg?0.92:undefined);
-  }catch(e){ exportSVG(); }
+    return await new Promise((res,rej)=>{
+      c.toBlob(b=>b?res(b):rej(new Error('toBlob gave nothing')),
+               jpg?'image/jpeg':'image/png', jpg?0.92:undefined);
+    });
+  } finally { URL.revokeObjectURL(url); }
+}
+
+/* ...and the saving, which is now the thin half. The button it was pressed
+   from is PASSED IN rather than looked up. It used to read
+   getElementById('dlPng'), which tied the export to one particular button in
+   one particular card — and that card is gone. Anything that can be pressed
+   can hand itself over; nothing has to, and a call with no button simply
+   exports without saying so on screen.
+   JPEG carries no alpha, but the sheet's first mark is an opaque ground rect
+   the width and height of the poster (see buildSVG), so there is no
+   transparency to lose and no white to paint in underneath. */
+async function exportRaster(kind,btn){
+  const old=btn?btn.textContent:'';
+  if(btn){ btn.textContent='Saving…'; btn.disabled=true; }
+  try{ download(await rasterBlob(kind), fileBase()+'.'+kind); }
+  catch(e){ exportSVG(); }
   finally{ if(btn){ btn.textContent=old; btn.disabled=false; } }
 }
 const exportPNG=btn=>exportRaster('png',btn);
