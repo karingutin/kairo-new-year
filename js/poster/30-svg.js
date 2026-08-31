@@ -109,7 +109,11 @@ function buildSVG(F){
        REPLACED THE SNAKE here (Karin, 26 Aug) — see RADIAL in
        26b-radial-block.js. The snake's own code (SNAKEL, snakeMarkup, the
        morph in 54-draw.js) is left in place but no longer called from here. */
-    + (isChosen('febdays') ? '<g class="hl" data-q="febdays" opacity="0.85">'+radialBlockMarkup(B,C)+'</g>' : '')
+    /* 0.87, not the 0.85 every other layer takes (Karin, 31 Aug: "add 2 per
+       cent of opacity to this element"). The two points are hers and they are
+       deliberate — this is the one layer asked to sit very slightly harder on
+       the sheet than its neighbours. */
+    + (isChosen('febdays') ? '<g class="hl" data-q="febdays" opacity="0.87">'+radialBlockMarkup(B,C)+'</g>' : '')
     + (isChosen('alarms') ? '<g class="hl" data-q="alarms" style="--nstep:'+(300/Math.max(1,rayCountFromAnswers())).toFixed(1)+'ms">'+risoNodeMarkup(B,C)+'</g>'  : '')
     + '</g>'
     /* The beams were removed — the snake took the centre. beamsMarkup and BEAMS

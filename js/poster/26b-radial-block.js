@@ -36,8 +36,16 @@ const RADIAL={
      vector") — less per-beam scatter in length and depth, and a much
      lighter hand-drawn wobble on every edge, so the beams read as one even
      radiating fan rather than an overlapping, hand-scrawled cluster. */
+  /* edgeJitter 0.04 -> 0.02 (Karin, 31 Aug: "reduce the hand-drawn quality of
+     this element"). This is the one knob for it — it is the sideways push on
+     every subdivided edge, so it is what makes a straight beam read as drawn
+     by hand rather than plotted. Halved, not zeroed: at 0 the beams go
+     mechanically clean and stop belonging to the rest of the sheet, which is
+     hand-cut everywhere. lengthVariance is left where it is; that one is the
+     fan's ARRANGEMENT, not its hand, and pulling it would flatten the spiral
+     into a wheel. */
   spiralTurns:1.4, innerRadius:0.32, beamThickness:0.08, beamLength:0.72,
-  lengthVariance:0.12, depthJitter:0.02, handCut:0, edgeJitter:0.04,
+  lengthVariance:0.12, depthJitter:0.02, handCut:0, edgeJitter:0.02,
   towardBias:0.72, fov:73, elevation:1.1, zoom:1.45,
   strokeWidth:1.5, misregistration:0,
   faceColor:'#FAF8F8', sideColor:'#F5242B', strokeColor:'#0C55FF',
@@ -202,7 +210,24 @@ function radialCrossSection(shape){
    below) is a plain per-vertex lerp, not a re-triangulation. All eight
    shapes in radialCrossSection are star-shaped from the origin (any ray out
    from the centre crosses the outline exactly once), which is what makes
-   ray-casting at N even angles well-defined. */
+   ray-casting at N even angles well-defined.
+
+   THE CLAIM ABOVE — "this changes nothing about how any single shape reads" —
+   WAS WRONG, and the plus is where it showed (Karin, 31 Aug: "the plusses of
+   the promotion element look slightly rounded"). It holds for points landing
+   on a straight EDGE. It does not hold for CORNERS. The plus's twelve
+   vertices sit at 21.8°, 45°, 68.2°, 111.8°, 135°, 158.2° and their
+   reflections; sampling every 360/24 = 15° hits 45, 135, 225 and 315 and
+   misses the other eight completely, so each arm tip was quietly chamfered
+   off. atan(0.4) is not a neat fraction of a turn, so no sane N lands on it
+   by luck.
+
+   So the ray-cast still runs at N even angles — the morph needs every shape
+   to come out the same length — and then every true vertex is SNAPPED onto
+   the sample nearest its own angle. The corner comes back exactly, the
+   vertex count does not move, and the lerp in startRadialMorph keeps working.
+   Collisions are stepped past rather than allowed to overwrite, so two
+   corners can never claim one slot and leave a third unrepresented. */
 function radialResampleSection(pts,N){
   const n=pts.length, out=[];
   for(let k=0;k<N;k++){
@@ -222,9 +247,24 @@ function radialResampleSection(pts,N){
     }
     out.push(found||[0,0]);
   }
+  /* put a point exactly on every corner, in the slot whose angle is closest */
+  const taken=new Set();
+  for(let e=0;e<n;e++){
+    const p=pts[e];
+    let a=Math.atan2(p[1],p[0]); if(a<0) a+=Math.PI*2;
+    let k=Math.round((a/(Math.PI*2))*N)%N;
+    /* nearest free slot, walking outward, so a crowded corner still lands */
+    for(let d=0; d<N; d++){
+      const c=(k+(d%2?-((d+1)>>1):((d+1)>>1))+N)%N;
+      if(!taken.has(c)){ taken.add(c); out[c]=[p[0],p[1]]; break; }
+    }
+  }
   return out;
 }
-const RADIAL_SECTION_N=24;
+/* 48, not 24: the corner snap above needs more slots than the shape has
+   vertices or the arms start stealing each other's, and the plus has twelve.
+   Doubling the ring is cheap next to a chamfered cap. */
+const RADIAL_SECTION_N=48;
 const radialSection=shape=>radialResampleSection(radialCrossSection(shape),RADIAL_SECTION_N);
 
 /* A generalized prism: M-gon cross-section extruded from origin to

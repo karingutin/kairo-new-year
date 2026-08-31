@@ -152,8 +152,15 @@ function recordMeta(){
 }
 /* A SKIPPED QUESTION WRITES NOTHING. Same rule the artwork keeps: a question
    passed over leaves no mark, and it must not leave a line either. */
+/* THE GREETING COMES FIRST, before any of it (Karin, 31 Aug). The band is
+   otherwise a record — what was answered, how long it took, when it happened —
+   and a record opens with none of that. This one line is the only thing on the
+   sheet addressed TO the person rather than about them, so it stands at the
+   head of the run and everything else reads as what follows from it.
+   Uppercase like every other item; the band is set in caps throughout. */
+const REC_GREETING='SHANA TOVA';
 function recordItems(){
-  const out=[];
+  const out=[REC_GREETING];
   ASKED.forEach(q=>{
     if(!isAnswered(q.id)) return;
     const write=REC_ITEM[q.id];
@@ -162,7 +169,17 @@ function recordItems(){
   });
   return out.concat(recordMeta());
 }
-const recordLine=()=>recordItems().join(' \\\\ ');
+/* A DOT, not the double backslash, between items (Karin, 31 Aug: "a small
+   circle sitting at half-height between the data points" — see her reference).
+   U+2022 BULLET is the character built for exactly this — a mid-height glyph
+   with paper on every side of it, which is what makes it read as a separator
+   rather than as a mark that belongs to either item beside it. It rides through
+   the rest of the pipeline as an ordinary word: recEmWidths measures its own
+   one-character advance, the greedy wrap can break a line on either side of it
+   same as any other word, and the per-word tspan loop below gives it the
+   letter-spacing and the arrival beat everything else gets. */
+const REC_SEP='•';
+const recordLine=()=>recordItems().join(' '+REC_SEP+' ');
 
 /* ---------------------------------------------------------------------
    SETTING IT.
@@ -339,9 +356,20 @@ function recordLayer(B,C,bandH){
      poster, band included (see buildSVG), and the artwork stops dead at the
      band's top edge because that edge IS the artwork's box. There is nothing
      down here to cover.
-     #0C55FF is the blue ink ROLE, not a blue: inkedMarkup swaps it for whatever
-     the colourway put in that role, so the record recolours with the sheet. */
-  return '<g class="record" fill="#0C55FF" font-family="'+REC_FACE.replace(/'/g,'&apos;')+'"'
+     ALWAYS THE DARKER OF THE TWO (Karin, 31 Aug: "let's decide the data line
+     is in the poster's dark colour"), not a fixed role. It used to be
+     "#0C55FF", the blue ink ROLE — but the two roles are a decision per pair
+     (see POSTER_ROLES), not a rule, and blue is the light one in three of the
+     five colourways. Fixed to a role, the band would go light-on-paper exactly
+     where legibility matters most: the last thing on the sheet, in the
+     smallest type on it. So this reads posterInk() and picks by hexLuma
+     instead, the same call sayingInk() already makes for the same reason (see
+     js/poster/29-word.js) — which is why the literal hex is written straight
+     into the markup rather than the frozen-role token inkedMarkup swaps
+     everywhere else: there is no fixed token for "whichever is darker". */
+  const ink=posterInk();
+  const dark=hexLuma(ink.red)<=hexLuma(ink.blue) ? ink.red : ink.blue;
+  return '<g class="record" fill="'+dark+'" font-family="'+REC_FACE.replace(/'/g,'&apos;')+'"'
     +   ' font-weight="400" font-size="'+fs.toFixed(1)+'"'
     +   ' letter-spacing="'+(fs*REC.track).toFixed(2)+'">'+body+'</g>';
 }

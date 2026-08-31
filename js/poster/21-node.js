@@ -30,7 +30,14 @@ const NODE={
      0.34 was too high, coming back down partway. Moved again (26 Aug) into
      the small marked-up box in the sheet's upper-left, once the radial block
      took over the band the node used to share with the snake. */
-  cx:0.285, cy:0.129,
+  /* cy 0.129 -> 0.098 (Karin, 31 Aug: "let's raise the element from question
+     5"). Raised, not resized — at 0.129 the mark's lower rays were closing on
+     the radial block's outer caps and the two started reading as one cluster.
+     Three per cent of the sheet is about a cell and a half at Sheet format,
+     which is enough air to separate them without pushing the mark into the
+     sheet's own top edge. Fine-tune it live with ?dev — the Vertical slider on
+     the node writes nodeY, which adds to this. */
+  cx:0.285, cy:0.098,
   /* One knob over all the fractions below, so the mark's proportions stay the
      tool's while its overall size is a single number to tune. Below 1 because
      at full size the node dominated a sheet it now shares with the month
