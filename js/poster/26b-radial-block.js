@@ -201,6 +201,39 @@ function radialCrossSection(shape){
   return pts;
 }
 
+/* Which of a shape's OWN corners are reflex (concave) — the standard turn
+   test: a vertex whose local turn direction disagrees with the polygon's
+   overall winding is a valley, not a point. Star's alternating outer/inner
+   radius makes this obvious by construction (odd indices are the five
+   notches between its points), but the test is general on purpose — it also
+   correctly finds the plus's four re-entrant corners, and returns nothing
+   for every convex shape (circle, triangle, hexagon, diamond, square,
+   teardrop), without a per-shape list to keep in sync as shapes are added. */
+function radialConcavePts(shape){
+  const pts=radialCrossSection(shape), n=pts.length;
+  let area=0;
+  for(let i=0;i<n;i++){ const a=pts[i], b=pts[(i+1)%n]; area+=a[0]*b[1]-b[0]*a[1]; }
+  const orient=Math.sign(area);
+  const out=[];
+  for(let i=0;i<n;i++){
+    const p0=pts[(i-1+n)%n], p1=pts[i], p2=pts[(i+1)%n];
+    const cross=(p1[0]-p0[0])*(p2[1]-p1[1])-(p1[1]-p0[1])*(p2[0]-p1[0]);
+    if(Math.sign(cross)!==orient) out.push(p1);
+  }
+  return out;
+}
+/* Which SLOTS of the resampled N-gon a shape's concave corners landed on —
+   same angle-to-slot mapping radialResampleSection uses to snap true
+   vertices, so a concave corner and its slot always agree on where it is. */
+function radialConcaveSlots(shape,N){
+  const slots=new Set();
+  for(const p of radialConcavePts(shape)){
+    let a=Math.atan2(p[1],p[0]); if(a<0) a+=Math.PI*2;
+    slots.add(Math.round((a/(Math.PI*2))*N)%N);
+  }
+  return slots;
+}
+
 /* Every shape resampled to the SAME N points, spaced evenly by ANGLE around
    the origin rather than by the shape's own vertex list — a straight edge
    just picks up extra points sitting exactly ON it (an edge split into
@@ -496,6 +529,27 @@ function radialEmit(built){
           if(co>mx){ mx=co; mxE=e; }
         }
         edgesToDraw=[mnE,mxE].filter(Boolean);
+      /* THE STAR HAD THE SAME DISEASE, one level milder (Karin, 31 Aug: green
+         lines crossing into the white star heads). Its five notches, between
+         the points, are concave the same way the plus's four re-entrant
+         corners are — and a concave vertex's base-to-tip edge runs close
+         enough to the shaft's centreline that it reads as a line drawn INTO
+         the cap rather than around it. Unlike the plus, the star's OUTER
+         corners are exactly what should stay: each point's own pair of rails
+         is the silhouette, not clutter. So this drops only the notches.
+
+         NAMED, not "every shape with any concave corner" — radialConcaveSlots
+         is a general test and teardrop trips it too (its parametric tip
+         pinches concave for three points on each side), but teardrop was
+         already looked at and the comment above keeps it deliberately: "circle
+         and teardrop keep their full set". Filtering by the general test
+         alone would have quietly re-opened that decision as a side effect
+         of fixing star, which is exactly the kind of drive-by regression a
+         named check avoids — the geometry test finds the CANDIDATES, the
+         shape name still decides which of them actually get acted on. */
+      } else if(shape==='star'){
+        const concave=radialConcaveSlots(shape,M);
+        if(concave.size) edgesToDraw=silEdges.filter(e=>!concave.has(e.j));
       }
       out+='<g fill="none" stroke="'+P.strokeColor+'" stroke-width="'+sw.toFixed(2)+'" stroke-linejoin="round" stroke-linecap="round" transform="translate('+(-mis*0.5).toFixed(1)+' '+(mis*0.35).toFixed(1)+')">';
       for(const e of edgesToDraw){
