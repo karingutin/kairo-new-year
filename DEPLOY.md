@@ -1,7 +1,6 @@
 # Deploy — KAIRO / Architecture of Time
 
-**Live: the address `wix release` prints — `https://<REPLACE ME: paste the URL
-from the first release here>`.**
+**Live: https://kairo-new-year-karingu-0e07.wix-site-host.com**
 
 Host: Wix-managed headless, deployed from `build/`. Not GitHub Pages any more
 — see the design at
