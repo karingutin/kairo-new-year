@@ -141,7 +141,16 @@ const QUESTION_BANK=[
       the bar (hung under the text) half a cell down the card for no reason. */
    hint:'No wrong answer here.',
    min:10, max:100, step:10, default:50, ends:['Calm','Overflowing'],
-   display:v=> v>55?'Overflowing' : v<45?'Calm' : 'Somewhere in between'},
+   /* the midpoint used to read 'Somewhere in between' — the exact same
+      string 'sixweek' shows at ITS midpoint below, so the hover card at
+      decades=50 and the hover card at sixweek's centre carried identical
+      titles despite being two different questions (Karin, 31 Aug — she
+      caught it on two side-by-side screenshots). Matched to the wording the
+      record band already uses for this same value instead — recordItems()
+      in js/app/63-record.js writes 'WISHING FOR A YEAR EVENLY BALANCED' for
+      exactly this range, so the card now agrees with the sheet's own foot
+      rather than inventing separate wording for the same fact. */
+   display:v=> v>55?'Overflowing' : v<45?'Calm' : 'Evenly balanced'},
   /* THE FOURTH, and the two either side of it are in the order Karin asked
      for on 16 Aug, then 30 Aug (twice) — the bank's order is the asking
      order (see pickQuestions; all three sit inside the pinned lead), so
@@ -210,7 +219,16 @@ const QUESTION_BANK=[
    title:'Looking back, how did this year turn out?',
    hint:'Let the handle settle wherever it honestly sits.',
    min:0, max:100, step:5, default:50, ends:['Predictable','Surprising'],
-   display:v=> v>55?'Surprising' : v<45?'Predictable' : 'Somewhere in between'},
+   /* see the note on 'decades' above — this used to share its exact
+      midpoint title with that question's. Echoes the record band's own
+      words for this value, 'PREDICTABLE AND SURPRISING EVEN' (see
+      js/app/63-record.js), without the 'and': at the card title's size
+      the full phrase wraps to two lines and pushes the three-line body
+      below it past the card's fixed height (measured, 31 Aug) — see
+      CLAUDE.md and the note on the body copy's own 57-75 character band
+      in js/app/62-hover-notes.js for why that box does not forgive
+      overflow. */
+   display:v=> v>55?'Surprising' : v<45?'Predictable' : 'Predictable, surprising'},
   /* The one question whose answer is WORDS. A `choice`, but it never touches the
      month ring: panelControl special-cases it (see compassMarkup) into four
      circles on the points of a compass. The picked word lands on the poster as

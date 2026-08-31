@@ -81,8 +81,17 @@ async function startShare(){
        mint is what has it. The rasterise is 1.6s of canvas work that only
        the PUT below cares about, and the PUT is not something anybody is
        waiting on: gating the code on it cost the visitor real seconds
-       staring at a placeholder for a blob they will never see. */
-    const blobP = rasterBlob('jpg');
+       staring at a placeholder for a blob they will never see.
+
+       PNG, not JPEG (Karin, 31 Aug — back to it for real). JPEG was tried
+       for the ~1.2MB it saved over PNG's ~3.3MB, which mattered while the
+       QR waited on the upload. It does not any more: the QR goes up on the
+       mint, above, so the PUT's size affects nothing anyone is looking at.
+       What JPEG cost in exchange was real — this poster is flat colour
+       fields and hard graphic edges, exactly what JPEG compresses worst,
+       and it is a keepsake people may print. Once the speed argument for
+       it was gone there was nothing left arguing for it. */
+    const blobP = rasterBlob('png');
     /* a rejected rasterise must not surface as an unhandled rejection while
        we are away awaiting the mint — it is handled properly further down */
     blobP.catch(()=>{});
@@ -141,7 +150,7 @@ async function startShare(){
        "still uploading" page, not a dead link, not a stack trace. */
     try{
       const blob = await blobP;
-      const up = await fetch(uploadUrl,{ method:'PUT', headers:{'Content-Type':'image/jpeg'}, body:blob });
+      const up = await fetch(uploadUrl,{ method:'PUT', headers:{'Content-Type':'image/png'}, body:blob });
       if(!up.ok) throw new Error('put '+up.status);
     }catch(e){
       console.warn('[kairo] poster upload failed (code left showing):', e && e.message);

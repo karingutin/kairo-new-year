@@ -129,7 +129,7 @@ export default {
     /* The name is the only thing a visitor could otherwise influence, so it is
        not taken from the request at all — it is generated here. */
     const fileName = 'kairo-' + Date.now().toString(36) + '-'
-                   + Math.random().toString(36).slice(2, 8) + '.jpg';
+                   + Math.random().toString(36).slice(2, 8) + '.png';
 
     try {
       const token = await accessToken(false);
@@ -282,14 +282,15 @@ function mint(token, fileName, size) {
        this 401, which is a slow half-hour to debug. */
     headers: { 'Authorization': token, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      /* JPEG, not PNG, and the two halves of this had to move together: the
-         browser PUTs image/jpeg (see js/app/64-share.js), so telling Wix
-         image/png here would store the file under a mime type it is not.
-         The poster loses nothing by it — buildSVG lays an opaque ground rect
-         the full size of the sheet, so there is no transparency to keep — and
-         it was the single biggest win available on the wait: the upload was
-         4.6 of the 8 seconds, and it is the bytes that cost, not the format. */
-      mimeType: 'image/jpeg',
+      /* PNG, not JPEG — reverted (Karin, 31 Aug) once the QR stopped waiting
+         on this upload at all (see js/app/64-share.js: the code goes up on
+         the mint, not the PUT). JPEG bought speed while the QR depended on
+         this call finishing; once it didn't, there was nothing left to trade
+         the artefacts for on this poster's flat colour and hard edges. The
+         two halves still have to agree — the browser PUTs image/png, so this
+         has to say the same or Wix stores the file under a mime type it
+         is not. */
+      mimeType: 'image/png',
       fileName: fileName,
       sizeInBytes: String(size),
       private: false,         // a private file's url returns 403, and a QR of a 403 is a dead QR
