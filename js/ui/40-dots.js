@@ -255,13 +255,19 @@ function fitAt(d,cw,ch,vw,vh,f,mayOverlapSheet,boxes){
    placeholder, and its menu hangs off the same vertical line.
    --------------------------------------------------------------------- */
 const FMT_CELLS=2;
-/* Same box the format control uses (see below) — this is deliberate, not a
-   coincidence to leave uncommented. The two are never both visible: this one
-   only shows once posterDone, and CONFIG.FORMAT_SWITCHER (js/00-core.js) is
-   off in this build, so the corner is free. If the switcher is ever turned
-   back on, whoever does it has to look at this again — the sizes could stay
-   equal by accident and diverge silently otherwise. */
-const CLOSE_CELLS=2;
+/* ONE CELL, not two (Karin, 31 Aug, against her own reference: the first pass
+   was too big and the × sat small and thin inside it — a two-cell box with an
+   0.85-cell glyph in it is mostly empty square). Her mock is a tight box the
+   mark nearly fills, so the box shrank AND the glyph grew relative to it —
+   see the fontSize line below, which is now a fraction of THIS box, not of
+   the bare cell.
+
+   Still stands in the format control's own corner, which is deliberate, not
+   a coincidence to leave uncommented: the two are never both visible, since
+   this one only shows once posterDone and CONFIG.FORMAT_SWITCHER (00-core.js)
+   is off in this build, so the corner is free. If the switcher is ever
+   turned back on, whoever does it has to look at this again. */
+const CLOSE_CELLS=1;
 function placeChrome(){
   const vw=window.innerWidth;
   const cell=cellSize(), o=gridOrigin();
@@ -297,9 +303,13 @@ function placeChrome(){
       closeBtn.style.top=phaseY+'px';
       closeBtn.style.width=cs+'px';
       closeBtn.style.height=cs+'px';
-      /* the glyph itself is sized in cell fractions too, per the same rule
-         everything else in this file follows — see CLAUDE.md */
-      closeBtn.style.fontSize=(cell*0.85)+'px';
+      /* the glyph is sized as a fraction of ITS OWN BOX (cs), not the bare
+         cell — with CLOSE_CELLS at 1 the two are equal in px, but writing it
+         against cs is what stays correct if CLOSE_CELLS ever changes again.
+         0.85 of a tight box is most of it, which is the point: the mark
+         should read as filling the square, not floating inside a mostly
+         empty one. */
+      closeBtn.style.fontSize=(cs*0.85)+'px';
     }
   }
 }
