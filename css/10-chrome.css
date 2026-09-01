@@ -310,8 +310,11 @@
 
   /* THE LATTICE (Q8/sixweek): on FIRST appearance only, every cell pops in as a
      true hard cut (no fade) — each cell carries its own reveal delay (--cd),
-     baked in JS as an eased distance-from-top-left so the population reads as
-     one diagonal wavefront sweeping down-right, easing out as it advances. A
+     baked in JS as a LINEAR distance-from-top-left (see entranceMarkup, not
+     eased any more — an ease-out's own flattening tail bunched dozens of far
+     diagonals within a couple of milliseconds of each other, Karin, 31 Aug)
+     so the population reads as one diagonal wavefront sweeping down-right,
+     evenly, corner to corner. A
      steps(1,end) animation holds each cell at opacity:0 for its entire duration
      and then snaps straight to opaque — no interpolation, matching the piece's
      no-fade language. Only ever runs once: any later paint (a bar drag, a

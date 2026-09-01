@@ -103,10 +103,16 @@ const latticeLayer = (function(){
      sweeping out from the top-left origin. `ci` is Manhattan distance from the
      top-left corner (col+row): every cell on the same anti-diagonal shares one
      delay, which is what makes the sweep read as a straight advancing front
-     rather than a scatter. The front's ADVANCE is what eases out (delays are
-     spaced by an eased curve across the diagonals); each individual cell's own
-     reveal stays a true instant cut — no fade, matching the rest of the bank's
-     no-fade language for hard marks.
+     rather than a scatter. The front's ADVANCE IS LINEAR, evenly paced across
+     the diagonals — it used to ease out, and eased is exactly what stopped it
+     reading as one by one (Karin, 31 Aug, circling the tail end of the sweep):
+     easeOutCubic's own derivative goes to zero as it approaches 1, so dozens of
+     diagonals near the FAR corner land within a millisecond or two of each
+     other despite every one of them getting a genuinely distinct value — a
+     20ms window held 42 of the 257 cells. An eased advance and an even one
+     cannot both be true at once; she asked for even, twice now, so linear it
+     is. Each individual cell's own reveal stays a true instant cut — no fade,
+     matching the rest of the bank's no-fade language for hard marks.
      Used ONLY on the very first paint (see latticeLayer): every later paint —
      a bar drag, a revisit — falls through to the efficient batched core() above
      and this per-cell markup is never re-emitted. */
@@ -115,28 +121,28 @@ const latticeLayer = (function(){
     const ir=(P.invert_ratio||0)/100, scale=P.shape_scale/100, radius=cs*scale*0.5;
     const lw=Math.max(1,Math.round(P.line_thickness));
     const maxCi=Math.max(1,(cols-1)+(rows-1));
-    const TOTAL_MS=900;                          // the whole sheet's sweep — ease-out band, upper end (full-bleed reveal)
+    const TOTAL_MS=900;                          // the whole sheet's sweep, top-left to far corner, linear
     const STEP_MS=240;                            // must match the CSS animation-duration (see latticeCellIn) —
                                                    // backed out of the delay so a cell's step still lands at its
-                                                   // eased moment in the sweep, not 240ms late.
+                                                   // own moment in the sweep, not 240ms late.
                                                    //
                                                    // NEGATIVE DELAYS ARE THE POINT, not a bug to clamp away (Karin,
-                                                   // 31 Aug: the sweep didn't rise smoothly). Every diagonal whose
-                                                   // eased time falls inside the first 240ms needs delay < 0 to
-                                                   // still land at its own eased moment — that is what "backed out"
-                                                   // MEANS, and a previous pass floored it at 0 "to be safe",
-                                                   // which collapsed every one of those diagonals onto the single
-                                                   // instant delay=0. Measured on a real sheet: 61 of 257 cells —
-                                                   // roughly a quarter of the whole lattice — sharing one exact
-                                                   // delay, popping in as one clump before the sweep proper even
-                                                   // starts. CSS animation-delay is well-defined negative: a
-                                                   // steps(1,end) animation given delay -190ms on a 240ms duration
-                                                   // is already 50ms into its one step when it starts being
-                                                   // applied, and fires 50ms later — exactly the eased time the
-                                                   // clamp was throwing away. The one cell truly at t=0 (the
-                                                   // sweep's own origin) gets delay -240, is already AT its step
-                                                   // the instant .enter lands, and needs no clamp to read as instant.
-    const easeOutCubic=x=>1-Math.pow(1-x,3);
+                                                   // 31 Aug: the sweep didn't rise smoothly — first the head, then,
+                                                   // once that was fixed, the tail). Every diagonal whose moment
+                                                   // falls inside the first 240ms needs delay < 0 to still land on
+                                                   // time — that is what "backed out" MEANS, and a previous pass
+                                                   // floored it at 0 "to be safe", which collapsed every one of
+                                                   // those diagonals onto the single instant delay=0. Measured on
+                                                   // a real sheet: 61 of 257 cells — roughly a quarter of the whole
+                                                   // lattice — sharing one exact delay, popping in as one clump
+                                                   // before the sweep proper even started. CSS animation-delay is
+                                                   // well-defined negative: a steps(1,end) animation given delay
+                                                   // -190ms on a 240ms duration is already 50ms into its one step
+                                                   // when it starts being applied, and fires 50ms later — exactly
+                                                   // the moment the clamp was throwing away. The one cell truly at
+                                                   // t=0 (the sweep's own origin) gets delay -240, is already AT
+                                                   // its step the instant .enter lands, and needs no clamp to read
+                                                   // as instant.
     const f=n=>n.toFixed(1);
     let out='';
     for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
@@ -146,7 +152,7 @@ const latticeLayer = (function(){
       const cx=ox+(c+0.5)*cs, cy=oy+(r+0.5)*cs, half=cs*0.5;
       const bgFill=inv?shapeColor:fillColor;         // Phase 1's per-cell fill
       const markColor=inv?fillColor:shapeColor;      // Phase 2's mark colour (the border stays shapeColor either way)
-      const delay=Math.round(TOTAL_MS*easeOutCubic((c+r)/maxCi))-STEP_MS;
+      const delay=Math.round(TOTAL_MS*((c+r)/maxCi))-STEP_MS;
       let mark='';
       if(P.show_frames && P.frame_opacity>0){
         mark+='<rect x="'+x0+'" y="'+y0+'" width="'+(x1-x0)+'" height="'+(y1-y0)+'" fill="'+bgFill+'"/>';
