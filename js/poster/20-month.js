@@ -112,16 +112,49 @@ function runMonthGrow(){
 /* The font has to be RESOLVED before the mask can be rasterised, but buildSVG
    is synchronous and paint() may run before any font has arrived. So the layer
    reports "not ready" and asks for one redraw when the font lands, rather than
-   blocking or silently baking in a fallback that would then never be corrected. */
+   blocking or silently baking in a fallback that would then never be corrected.
+
+   ONE LOAD PROMISE WAS NOT ENOUGH (Karin, 31 Aug — the very first question,
+   intermittently, showing a mangled circle-packing instead of the word). The
+   font really had loaded — document.fonts.load() had resolved — but a canvas
+   2D fillText issued on the same tick can still rasterise the FALLBACK face
+   for one more frame; the FontFaceSet reports ready before the canvas engine
+   has actually swapped glyphs. monthMask() (below) reads that canvas back as
+   pixels, so a mask built in that gap bakes in the wrong letterforms — not a
+   missing font, a WRONG one, which is why it looked like broken type rather
+   than empty space.
+
+   TWO MORE WAITS — document.fonts.ready, then a requestAnimationFrame — WERE
+   STILL NOT ENOUGH (Karin, 31 Aug, same bug, same question, after that fix had
+   already shipped). Trusting the browser's OWN signal for "is the font really
+   in use yet" was the wrong idea twice in a row, so this stops doing that.
+   Instead it asks the one question that actually matters, directly, on the
+   canvas monthMask() itself will read: how wide is a probe string? Sampled
+   repeatedly, a fallback face gives a STABLE (if wrong) answer and a genuine
+   mid-swap gives a CHANGING one — so two identical answers in a row is the
+   signal, not any promise. Cheap in the common case (the font is usually
+   already settled by Q1, so this exits after one or two samples) and it no
+   longer matters which signal a given browser gets wrong, because none of
+   them are being trusted any more. Capped at 12 tries (~720ms) so a page that
+   never settles still draws with whatever it last measured, rather than
+   leaving the layer blank forever over a fight it cannot win. */
 let monthFontState='idle';                    // idle | loading | ready
 function ensureMonthFont(){
   if(monthFontState!=='idle') return;
   monthFontState='loading';
-  const done=()=>{ monthFontState='ready'; monthCache={key:'',markup:''}; drawNow(); };
-  if(!document.fonts||!document.fonts.load){ done(); return; }
-  /* Resolve either way: a failed fetch falls through to the serif fallback and
-     still draws, rather than leaving the layer permanently blank. */
-  document.fonts.load('400 100px "'+MONTHL.family+'"').then(done,done);
+  const probe=document.createElement('canvas').getContext('2d');
+  /* the string itself is arbitrary — any non-trivial probe would do, this is
+     just long enough that a fallback face's width clearly differs from the
+     real one, so two READINGS are never accidentally equal across a swap */
+  const sample=()=>{ probe.font='normal 400 100px "'+MONTHL.family+'",'+MONTHL.fallback; return probe.measureText('ARCHITECTURE').width; };
+  let last=null, tries=0;
+  const poll=()=>{
+    const w=sample();
+    if(w===last || ++tries>=12){ monthFontState='ready'; monthCache={key:'',markup:''}; drawNow(); return; }
+    last=w;
+    setTimeout(poll,60);
+  };
+  poll();
 }
 
 /* Split the temperature string the way the tool does: never break a word, pair
