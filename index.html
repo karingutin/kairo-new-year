@@ -105,6 +105,14 @@
   <div id="fmtMenu" role="menu" aria-label="Poster format"></div>
   <div id="status"></div>
   <button type="button" id="reset" aria-label="Reset all answers">Reset</button>
+  <!-- The way out of the finished poster, back to KAIRO's own opening screen
+       (see backToStart() in js/app/55-reset.js — the same destination the
+       KAIRO mark itself already opens, just a second, more obvious door to
+       it once the poster is made). Shares the format control's own top-right
+       slot — free while CONFIG.FORMAT_SWITCHER is off, since the two never
+       show at once — and is placed and sized from placeChrome() in
+       js/ui/40-dots.js for the same reason as that control. -->
+  <button type="button" id="closeToStart" aria-label="Close, back to KAIRO's opening screen">×</button>
   <!-- The finished poster's address, for a phone. Placed and sized entirely
        from js/app/64-share.js, because like all the chrome it lands on grid
        lines and the grid is a function of the viewport. -->

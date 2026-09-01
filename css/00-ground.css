@@ -343,6 +343,22 @@
                transition-duration:.15s}
   #reset:disabled{opacity:.3;cursor:default;border-bottom-color:transparent}
   #reset:disabled:hover{color:var(--chrome-ink)}
+  /* THE CLOSE BUTTON. --chrome-ink/--chrome-hot are the same two roles Reset
+     and Back already read — tuned specifically to work against body.made's
+     inverted ground, which is the only ground this button ever stands on
+     (Karin, 16 Aug: they have to be MORE readable inverted, not equally
+     faint — see the note on body.made in this file). --ui is this project's
+     one interface font, Wix Madefor Display with its own fallback chain —
+     asked for by name here (Karin, 31 Aug) rather than left in --mono like
+     Reset's own label, which is the piece's data-record face, not its UI one. */
+  #closeToStart{position:absolute;z-index:9;display:none;pointer-events:auto;cursor:pointer;
+         background:transparent;border:1px solid var(--chrome-line);box-sizing:border-box;
+         font-family:var(--ui);font-weight:500;line-height:1;color:var(--chrome-ink);
+         align-items:center;justify-content:center;padding:0;
+         transition:color var(--flip) var(--eo),border-color var(--flip) var(--eo)}
+  #closeToStart.on{display:flex}
+  #closeToStart:hover{color:var(--chrome-hot);border-color:var(--chrome-hot)}
+  #closeToStart:focus-visible{outline:1px solid var(--chrome-hot);outline-offset:3px}
 
   /* Placeholder, snapped to grid lines by placeChrome(). Drop real content
      inside; sized to 3 x 3 grid cells. */

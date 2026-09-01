@@ -65,30 +65,18 @@ function syncSheet(){
    exactly one place either value can come from at any moment. The transition on
    #reset is what makes it travel rather than jump. */
 let resetRest=null;
-/* THE LABEL SWAPS WITH THE POSITION, not just alongside it (Karin, 31 Aug:
-   "an X, instead of Reset, on the last screen, back to KAIRO's landing").
-   Past the ending Reset is not the honest name for this control any more —
-   pressing it here does not offer another go at the SAME poster, it leaves
-   for good, so it gets the universal close glyph and the KAIRO mark's own
-   destination (see backToStart() in js/app/55-reset.js) rather than
-   resetAll()'s straight-to-question-one. Both states are set in the one
-   place that already knows which one is live, the same way the position
-   already did — a second place deciding the same fact is how the two drift. */
+/* PAST THE ENDING RESET STANDS DOWN, it does not relabel — that was tried
+   (Karin, 30-31 Aug) and the result was a control too small to read, which
+   is what #closeToStart (js/ui/40-dots.js's placeChrome) exists to replace
+   properly. Reset offering "another go" makes no sense once the poster is
+   made anyway, so it simply leaves rather than pretending to be a different
+   control in the same twelve pixels. */
 function placeReset(){
   if(!resetBtn) return;
   if(resetRest===null && !resetBtn.style.bottom)
     resetRest=parseFloat(getComputedStyle(resetBtn).bottom)||0;
-  if(!posterDone){
-    resetBtn.style.bottom='';
-    resetBtn.textContent='Reset';
-    resetBtn.setAttribute('aria-label','Reset all answers');
-    return;
-  }
-  resetBtn.textContent='×';
-  resetBtn.setAttribute('aria-label',"Close, back to KAIRO's opening screen");
-  const c=cellSize(), o=gridOrigin(), F=FMT(), S2=sheetCols(F);
-  const line=(o.y+S2.top*c)+(F.rows+RECORD_ROWS)*c;
-  resetBtn.style.bottom=Math.max(resetRest, window.innerHeight-line+0.5*c)+'px';
+  if(!posterDone){ resetBtn.style.bottom=''; resetBtn.style.display=''; return; }
+  resetBtn.style.display='none';
 }
 /* the format's own outline, fitted inside a cap x cap box */
 const glyph=(F,cap)=>{

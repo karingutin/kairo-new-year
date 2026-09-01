@@ -58,6 +58,8 @@ function showFinish(){
   growSheet();
   document.body.classList.add('made');
   placeReset();                       // out of the way of the line coming down
+  placeChrome();                      // the close button takes the corner Reset gave up
+  armIdleReturn();                    // forty untouched seconds here is a door too (see js/app/55-reset.js)
   renderSnake(); renderStatus(); submit('complete');
   /* THE QR COMES BACK ON ITS OWN, and it waits for the board to turn over
      first. The upload is ten seconds of work and nothing is gained by starting
@@ -89,7 +91,9 @@ function hideFinish(){
   posterDone=false;
   growSheet();                        // the sheet shortens on the same clock
   document.body.classList.remove('made');
-  placeReset();                       // ...and the label comes back down with it
+  placeReset();                       // ...and Reset comes back with it
+  placeChrome();                      // ...and the close button gives the corner back
+  disarmIdleReturn();                 // this door is not open any more; the 40s clock stops
   /* the record's numbers go live again: the asking is open, and the next Create
      is a different poster with a different duration on it. No repaint is asked
      for here on purpose — the band is being covered again as the sheet comes

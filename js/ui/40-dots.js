@@ -18,6 +18,7 @@ const statusBar=document.getElementById('status');
 const fmtBtn=document.getElementById('fmtBtn');
 const fmtMenu=document.getElementById('fmtMenu');
 const resetBtn=document.getElementById('reset');
+const closeBtn=document.getElementById('closeToStart');
 const logoEl=document.getElementById('kairo');
 const landing=document.getElementById('landing');
 const landingBody=document.getElementById('landingBody');
@@ -254,6 +255,13 @@ function fitAt(d,cw,ch,vw,vh,f,mayOverlapSheet,boxes){
    placeholder, and its menu hangs off the same vertical line.
    --------------------------------------------------------------------- */
 const FMT_CELLS=2;
+/* Same box the format control uses (see below) — this is deliberate, not a
+   coincidence to leave uncommented. The two are never both visible: this one
+   only shows once posterDone, and CONFIG.FORMAT_SWITCHER (js/00-core.js) is
+   off in this build, so the corner is free. If the switcher is ever turned
+   back on, whoever does it has to look at this again — the sizes could stay
+   equal by accident and diverge silently otherwise. */
+const CLOSE_CELLS=2;
 function placeChrome(){
   const vw=window.innerWidth;
   const cell=cellSize(), o=gridOrigin();
@@ -276,6 +284,24 @@ function placeChrome(){
   fmtMenu.style.top=(phaseY+fs+1)+'px';
   fmtMenu.style.left='auto';
   fmtMenu.style.right=(vw-lastLineX)+'px';
+
+  /* THE CLOSE BUTTON (Karin, 31 Aug: "an X inside a square", replacing the
+     unreadable one Reset briefly grew in its own corner). Only stands once
+     posterDone — showFinish()/hideFinish() call this function for exactly
+     that reason, same as they already call placeReset(). */
+  if(closeBtn){
+    closeBtn.classList.toggle('on',!!posterDone);
+    if(posterDone){
+      const cs=CLOSE_CELLS*cell;
+      closeBtn.style.left=(lastLineX-cs)+'px';
+      closeBtn.style.top=phaseY+'px';
+      closeBtn.style.width=cs+'px';
+      closeBtn.style.height=cs+'px';
+      /* the glyph itself is sized in cell fractions too, per the same rule
+         everything else in this file follows — see CLAUDE.md */
+      closeBtn.style.fontSize=(cell*0.85)+'px';
+    }
+  }
 }
 
 /* ---------------------------------------------------------------------
