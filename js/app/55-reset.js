@@ -42,7 +42,12 @@ function resetAll(){
   startClock();
   relayout();
 }
-resetBtn.addEventListener('click',resetAll);
+/* PAST THE ENDING THIS IS NOT RESET ANY MORE — placeReset() (60-format.js)
+   already relabels the same button to × once posterDone, and the click has
+   to agree with what it now says: backToStart() (below), not resetAll(). One
+   element, one state it reads from, so the label and the action can never
+   show one thing and do another. */
+resetBtn.addEventListener('click',()=>{ if(posterDone) backToStart(); else resetAll(); });
 
 /* THE MARK: the same wipe, and out to the opening screen — S.baseDone is left
    where PROFILE_DEFAULTS put it, which is down, so the board stands empty
