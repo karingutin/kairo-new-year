@@ -294,13 +294,16 @@ function placeChrome(){
   /* THE CLOSE BUTTON (Karin, 31 Aug: "an X inside a square", replacing the
      unreadable one Reset briefly grew in its own corner). Only stands once
      posterDone — showFinish()/hideFinish() call this function for exactly
-     that reason, same as they already call placeReset(). */
+     that reason, same as they already call placeReset(). Pulled one cell
+     down and two cells in from the exact corner (Karin, 31 Aug, marked up on
+     a screenshot) — flush against both edges at once read as clipped rather
+     than placed. */
   if(closeBtn){
     closeBtn.classList.toggle('on',!!posterDone);
     if(posterDone){
       const cs=CLOSE_CELLS*cell;
-      closeBtn.style.left=(lastLineX-cs)+'px';
-      closeBtn.style.top=phaseY+'px';
+      closeBtn.style.left=(lastLineX-cs-2*cell)+'px';
+      closeBtn.style.top=(phaseY+cell)+'px';
       closeBtn.style.width=cs+'px';
       closeBtn.style.height=cs+'px';
       /* the glyph is sized as a fraction of ITS OWN BOX (cs), not the bare
