@@ -175,8 +175,8 @@ function exportSVG(){ download(new Blob([buildSVG()],{type:'image/svg+xml'}), fi
    js/app/64-share.js), and "exact" has to be structural. Two code paths that
    both happen to rasterise correctly would drift the first time one of them
    was touched. */
-async function rasterBlob(kind){
-  const svg=buildSVG();
+async function rasterBlob(kind,withBar){
+  const svg=buildSVG(undefined,withBar);
   const img=new Image(), scale=2.6;
   const url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
   try{
@@ -185,8 +185,10 @@ async function rasterBlob(kind){
     const B=box();                       // the current format's own pixel box
     /* ...plus the record's two rows, which are part of the sheet and not part of
        the artwork's box. Sizing the canvas off B alone would crop the band off
-       the bottom of every PNG and JPEG while the SVG kept it. */
-    c.width=B.w*scale; c.height=(B.h+RECORD_ROWS*(B.w/B.cols))*scale;
+       the bottom of every PNG and JPEG while the SVG kept it. Plus the logo
+       bar's own row, when this call is the one startShare() makes. */
+    const cell=B.w/B.cols;
+    c.width=B.w*scale; c.height=(B.h+RECORD_ROWS*cell+(withBar?LOGO_BAR_ROWS*cell:0))*scale;
     c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     const jpg=kind==='jpg';
     return await new Promise((res,rej)=>{

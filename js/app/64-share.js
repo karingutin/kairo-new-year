@@ -91,7 +91,11 @@ async function startShare(){
        fields and hard graphic edges, exactly what JPEG compresses worst,
        and it is a keepsake people may print. Once the speed argument for
        it was gone there was nothing left arguing for it. */
-    const blobP = rasterBlob('png');
+    /* withBar=true: this is the poster whose bytes go up to Wix and whose
+       address the QR points at — the one place the Wix/Base44 bar belongs
+       (see logoBarLayer, js/app/63-record.js). The live sheet and the
+       unreachable exportRaster/exportSVG downloads never ask for it. */
+    const blobP = rasterBlob('png',true);
     /* a rejected rasterise must not surface as an unhandled rejection while
        we are away awaiting the mint — it is handled properly further down */
     blobP.catch(()=>{});

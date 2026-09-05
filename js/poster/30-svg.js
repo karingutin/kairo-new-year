@@ -1,7 +1,7 @@
 /* =====================================================================
    SVG
    ===================================================================== */
-function buildSVG(F){
+function buildSVG(F,withBar){
   const B=box(F);
   const C=PAPER;
   /* THE SHEET IS ALWAYS THE LONG ONE HERE, made or not. B is the ARTWORK's box
@@ -12,7 +12,11 @@ function buildSVG(F){
      So there is no second markup for the ending and nothing to bake for the
      export: the file that is saved is the sheet that is on screen. */
   const RECH=RECORD_ROWS*(B.w/B.cols);
-  const VH=B.h+RECH;
+  /* the logo bar, Wix and Base44, only on the raster that startShare() uploads
+     — see logoBarLayer, js/app/63-record.js, for why it never reaches the
+     live sheet */
+  const BARH=withBar ? LOGO_BAR_ROWS*(B.w/B.cols) : 0;
+  const VH=B.h+RECH+BARH;
   const smokeMax=25;
   const smoke=smokeFromAnswers();
 
@@ -127,6 +131,7 @@ function buildSVG(F){
        simply not showing — the frame is not that tall yet. Which is what lets
        showFinish keep asking for no redraw of the marks. */
     + recordLayer(B,C,RECH)
+    + (withBar ? logoBarLayer(B,B.h+RECH,BARH) : '')
     + '</svg>';
   /* THE COLOURWAY recolours the whole sheet: the last question maps the poster's
      two ink roles to the chosen pair. red-role = every #F5242B, blue-role = every
